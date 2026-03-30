@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Rehabilitación">
+<meta name="theme-color" content="#1a2e1a">
+<title>Mi Rehabilitación · Luis Miguel</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+:root {
+  --bg: #0f1f0f;
+  --surface: #1a2e1a;
+  --surface2: #223322;
+  --card: #2a3f2a;
+  --border: #3a5a3a;
+  --green: #4caf72;
+  --green2: #2d8a50;
+  --green-glow: rgba(76,175,114,0.15);
+  --amber: #f5a623;
+  --amber-bg: rgba(245,166,35,0.12);
+  --red: #e05c5c;
+  --red-bg: rgba(224,92,92,0.12);
+  --blue: #5ba8e0;
+  --blue-bg: rgba(91,168,224,0.12);
+  --text: #e8f5e8;
+  --text2: #a0c0a0;
+  --text3: #6a8a6a;
+  --done: #1f3a1f;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: 18px;
+  overflow: hidden;
+}
+
+/* ── APP SHELL ── */
+.app { height: 100dvh; display: flex; flex-direction: column; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px 14px;
+  flex-shrink: 0;
+}
+.header-top { display: flex; align-items: center; justify-content: space-between; }
+.header-name { font-size: 15px; font-weight: 700; color: var(--green); letter-spacing: 0.04em; }
+.header-date { font-size: 13px; color: var(--text3); }
+.phase-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green-glow);
+  border: 1px solid var(--green2);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  margin-top: 8px;
+}
+.day-counter {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+.day-counter span { color: var(--amber); font-weight: 800; }
+
+/* ── PROGRESS BAR ── */
+.progress-wrap { margin-top: 10px; }
+.progress-label { font-size: 12px; color: var(--text3); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.progress-track {
+  height: 6px;
+  background: var(--card);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green2), var(--green));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── SCROLL AREA ── */
+.scroll { flex: 1; overflow-y: auto; padding: 16px 16px 100px; }
+.scroll::-webkit-scrollbar { display: none; }
+
+/* ── SECTION HEADER ── */
+.section-head {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 6px 4px 10px;
+  margin-top: 8px;
+}
+
+/* ── TASK CARD ── */
+.task {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: all 0.2s;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.task.done {
+  background: var(--done);
+  border-color: var(--surface2);
+  opacity: 0.65;
+}
+.task-inner {
+  display: flex;
+  align-items: center;
+  padding: 16px 18px;
+  gap: 16px;
+}
+.task-check {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 20px;
+  transition: all 0.2s;
+  background: transparent;
+}
+.task.done .task-check {
+  background: var(--green2);
+  border-color: var(--green2);
+}
+.task-icon { font-size: 26px; flex-shrink: 0; }
+.task-body { flex: 1; min-width: 0; }
+.task-time { font-size: 13px; color: var(--text3); font-weight: 700; }
+.task-title { font-size: 19px; font-weight: 800; line-height: 1.25; margin: 1px 0 3px; }
+.task.done .task-title { text-decoration: line-through; color: var(--text3); }
+.task-sub { font-size: 14px; color: var(--text2); line-height: 1.4; }
+.task-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.badge-walk { background: var(--green-glow); color: var(--green); border: 1px solid var(--green2); }
+.badge-ex { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,166,35,0.4); }
+.badge-rest { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(91,168,224,0.3); }
+
+/* ── NEXT UP BANNER ── */
+.next-banner {
+  background: linear-gradient(135deg, var(--green2), #1a5c35);
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.next-label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232,245,232,0.6); }
+.next-title { font-size: 22px; font-weight: 900; color: var(--text); margin: 2px 0 3px; }
+.next-time { font-size: 15px; color: rgba(232,245,232,0.7); font-weight: 600; }
+.next-icon { font-size: 40px; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px 10px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 4px;
+  transition: color 0.15s;
+}
+.nav-btn.active { color: var(--green); }
+.nav-icon { font-size: 22px; }
+
+/* ── SCREENS ── */
+.screen { display: none; height: 100%; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* ── PROTOCOL SCREEN ── */
+.protocol-list { padding: 16px 16px 100px; overflow-y: auto; flex: 1; }
+.protocol-list::-webkit-scrollbar { display: none; }
+.proto-phase {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.proto-head {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.proto-name { font-size: 18px; font-weight: 800; }
+.proto-range { font-size: 13px; color: var(--text3); margin-top: 2px; }
+.proto-status {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 10px;
+}
+.proto-status.current { background: var(--green-glow); color: var(--green); border: 1px solid var(--green2); }
+.proto-status.future { background: var(--surface2); color: var(--text3); }
+.proto-status.done-ph { background: rgba(76,175,114,0.08); color: var(--text3); }
+.proto-body {
+  padding: 0 18px 16px;
+  display: none;
+}
+.proto-body.open { display: block; }
+.proto-ex { font-size: 14px; color: var(--text2); padding: 4px 0; line-height: 1.5; }
+.proto-ex::before { content: '→ '; color: var(--text3); }
+
+/* ── ALERTS SCREEN ── */
+.alerts-wrap { padding: 16px 16px 100px; overflow-y: auto; flex: 1; }
+.alerts-wrap::-webkit-scrollbar { display: none; }
+.alert-item {
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.alert-item.red { background: var(--red-bg); border: 1px solid rgba(224,92,92,0.35); }
+.alert-item.amber { background: var(--amber-bg); border: 1px solid rgba(245,166,35,0.35); }
+.alert-item.green { background: var(--green-glow); border: 1px solid rgba(76,175,114,0.3); }
+.alert-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.red .alert-title { color: var(--red); }
+.amber .alert-title { color: var(--amber); }
+.green .alert-title { color: var(--green); }
+.alert-list { list-style: none; }
+.alert-list li { font-size: 16px; color: var(--text2); padding: 4px 0; line-height: 1.45; }
+.alert-list li::before { content: '• '; }
+
+/* ── NOTIF SCREEN ── */
+.notif-wrap { padding: 20px 16px 100px; overflow-y: auto; flex: 1; }
+.notif-wrap::-webkit-scrollbar { display: none; }
+.notif-big-btn {
+  background: linear-gradient(135deg, var(--green2), #1a5c35);
+  border: none;
+  border-radius: 18px;
+  padding: 22px 24px;
+  width: 100%;
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+}
+.notif-big-btn .nb-icon { font-size: 36px; }
+.notif-big-btn .nb-sub { font-size: 14px; color: rgba(232,245,232,0.65); font-weight: 600; margin-top: 2px; }
+.notif-status {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.notif-status-title { font-size: 15px; font-weight: 800; color: var(--text2); margin-bottom: 10px; }
+.notif-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+.notif-row:last-child { border-bottom: none; }
+.notif-time { color: var(--green); font-weight: 700; }
+.notif-desc { color: var(--text2); font-size: 13px; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 22px 36px;
+  width: 100%;
+  max-width: 480px;
+  border-top: 1px solid var(--border);
+  animation: slideup 0.25s ease;
+}
+@keyframes slideup { from { transform: translateY(60px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+.modal-icon { font-size: 48px; text-align: center; margin-bottom: 12px; }
+.modal-title { font-size: 24px; font-weight: 900; text-align: center; margin-bottom: 8px; }
+.modal-sub { font-size: 16px; color: var(--text2); text-align: center; margin-bottom: 20px; line-height: 1.5; }
+.modal-steps { list-style: none; margin-bottom: 24px; }
+.modal-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  color: var(--text2);
+  line-height: 1.4;
+}
+.modal-steps li:last-child { border-bottom: none; }
+.step-num {
+  width: 28px;
+  height: 28px;
+  background: var(--green2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: white;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.modal-close {
+  width: 100%;
+  padding: 18px;
+  background: var(--green2);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-80px);
+  background: var(--green2);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: 700;
+  z-index: 200;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── CONFETTI ── */
+.confetti-wrap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 300;
+}
+.cf {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  animation: fall 1.2s ease-in forwards;
+}
+@keyframes fall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity:1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity:0; }
+}
+
+/* ── PULSE DOT ── */
+.pulse-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(76,175,114,0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(76,175,114,0); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══ SCREEN: HOY ═══ -->
+  <div class="screen active" id="screen-hoy">
+    <div class="header">
+      <div class="header-top">
+        <div>
+          <div class="header-name">Luis Miguel</div>
+          <div class="header-date" id="hdr-date">—</div>
+        </div>
+        <div class="pulse-dot"></div>
+      </div>
+      <div class="phase-pill">
+        <span id="phase-icon">🌱</span>
+        <span id="phase-name">—</span>
+      </div>
+      <div class="day-counter">Día <span id="day-num">—</span> del protocolo</div>
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Tareas de hoy</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll" id="task-list">
+      <!-- generado por JS -->
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN: PROTOCOLO ═══ -->
+  <div class="screen" id="screen-protocolo">
+    <div class="header">
+      <div class="header-name">Protocolo completo</div>
+      <div class="day-counter" style="margin-top:6px">Pulsa cada fase para ver los ejercicios</div>
+    </div>
+    <div class="protocol-list" id="protocol-list">
+      <!-- generado por JS -->
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN: ALERTAS ═══ -->
+  <div class="screen" id="screen-alertas">
+    <div class="header">
+      <div class="header-name">⚠ Señales de alerta</div>
+      <div class="day-counter" style="margin-top:6px">Lee esto antes de hacer ejercicio</div>
+    </div>
+    <div class="alerts-wrap">
+
+      <div class="alert-item red">
+        <div class="alert-title">🚨 Urgencias ahora — llama al 112</div>
+        <ul class="alert-list">
+          <li>Dolor brusco e intenso en cadera o ingle</li>
+          <li>Pierna operada girada o más corta de repente</li>
+          <li>Clic o "salto" en la cadera</li>
+          <li>Pierna muy hinchada, roja y caliente</li>
+          <li>Falta de aire que no cede</li>
+          <li>Confusión o desorientación súbita</li>
+        </ul>
+      </div>
+
+      <div class="alert-item amber">
+        <div class="alert-title">⚠ Parar y llamar al médico hoy</div>
+        <ul class="alert-list">
+          <li>Dolor en cadera que empeora al moverse</li>
+          <li>Herida con enrojecimiento, calor o líquido</li>
+          <li>Fiebre por encima de 38 °C</li>
+          <li>Mareo al levantarse que no pasa</li>
+          <li>Piernas muy hinchadas por la tarde</li>
+          <li>No puede levantarse aunque quiera</li>
+        </ul>
+      </div>
+
+      <div class="alert-item amber">
+        <div class="alert-title">⛔ Nunca hagas esto (3 meses)</div>
+        <ul class="alert-list">
+          <li>No doblar la cadera más de 90° (no agacharse)</li>
+          <li>No cruzar las piernas sentado ni en cama</li>
+          <li>No girar el pie operado hacia dentro</li>
+          <li>No usar WC bajo — usar alzador</li>
+          <li>No sentarse en sofá hundido</li>
+        </ul>
+      </div>
+
+      <div class="alert-item green">
+        <div class="alert-title">✓ Señales de que va bien</div>
+        <ul class="alert-list">
+          <li>Cada día camina igual o un poco más</li>
+          <li>Las transferencias son más fáciles</li>
+          <li>El dolor en reposo va bajando</li>
+          <li>Duerme sin despertarse por dolor</li>
+          <li>Menos miedo al levantarse</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN: NOTIFICACIONES ═══ -->
+  <div class="screen" id="screen-notif">
+    <div class="header">
+      <div class="header-name">🔔 Avisos del día</div>
+      <div class="day-counter" style="margin-top:6px">Activa los recordatorios para no olvidar nada</div>
+    </div>
+    <div class="notif-wrap">
+
+      <button class="notif-big-btn" onclick="requestNotifications()">
+        <div class="nb-icon">🔔</div>
+        <div>
+          <div>Activar recordatorios</div>
+          <div class="nb-sub">El móvil te avisará a cada hora</div>
+        </div>
+      </button>
+
+      <div class="notif-status" id="notif-status-box">
+        <div class="notif-status-title">📅 Recordatorios de hoy</div>
+        <div id="notif-list">
+          <!-- generado por JS -->
+        </div>
+      </div>
+
+      <div class="notif-status" style="margin-top:4px">
+        <div class="notif-status-title" style="color:var(--text3); font-size:13px">ℹ️ Cómo funciona en iOS (iPhone)</div>
+        <div style="font-size:13px; color:var(--text3); line-height:1.6; margin-top:6px">
+          1. Abre esta página en Safari<br>
+          2. Pulsa el botón compartir (cuadrado con flecha)<br>
+          3. Selecciona "Añadir a pantalla de inicio"<br>
+          4. Abre la app desde la pantalla de inicio<br>
+          5. Pulsa "Activar recordatorios" y acepta
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="nav-btn active" id="nav-hoy" onclick="showScreen('hoy')">
+      <span class="nav-icon">📋</span>Hoy
+    </button>
+    <button class="nav-btn" id="nav-protocolo" onclick="showScreen('protocolo')">
+      <span class="nav-icon">📆</span>Fases
+    </button>
+    <button class="nav-btn" id="nav-alertas" onclick="showScreen('alertas')">
+      <span class="nav-icon">⚠️</span>Alertas
+    </button>
+    <button class="nav-btn" id="nav-notif" onclick="showScreen('notif')">
+      <span class="nav-icon">🔔</span>Avisos
+    </button>
+  </div>
+</div>
+
+<!-- MODAL EJERCICIO -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-icon" id="modal-icon"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <ul class="modal-steps" id="modal-steps"></ul>
+    <button class="modal-close" onclick="closeModalDirect()">✓ Entendido</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- CONFETTI -->
+<div class="confetti-wrap" id="confetti"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATOS DEL PROTOCOLO
+// ═══════════════════════════════════════════
+const START_DATE = new Date('2026-03-30T00:00:00');
+
+const PHASES = [
+  {
+    id: 1,
+    name: 'Fase 1 — Primeros pasos',
+    range: 'Días 1–7',
+    days: [1,7],
+    icon: '🌱',
+    color: '#4caf72',
+    exercises: [
+      'Bombeo de tobillos: 20 rep (flexión/extensión del pie)',
+      'Isométrico de cuádriceps: apretar el muslo contra la cama 10 rep × 5 seg',
+      'Isométrico de glúteos: apretar nalgas sin mover nada · 10 rep × 5 seg',
+      'Estar de pie estático con andador: 30 segundos por caminata',
+      'PROHIBIDO: extensión de rodilla, elevación de pierna, rotaciones'
+    ]
+  },
+  {
+    id: 2,
+    name: 'Fase 2 — Movimiento activo',
+    range: 'Días 8–35',
+    days: [8,35],
+    icon: '🚶',
+    color: '#f5a623',
+    exercises: [
+      'Todo lo de fase 1 con más repeticiones (15 rep)',
+      'Heel slide: deslizar talón en cama doblando rodilla suave · 10–15 rep',
+      'Abducción isométrica: empujar pierna operada hacia fuera contra almohada · 10 rep',
+      'Caminatas de 15–30 m con andador',
+      'Semana 3: primer paseo corto en exterior con acompañante',
+      'Semana 4–5: elevación de pierna recta tumbado · 8–10 rep (si sin dolor)'
+    ]
+  },
+  {
+    id: 3,
+    name: 'Fase 3 — Fortalecimiento',
+    range: 'Días 36–84',
+    days: [36,84],
+    icon: '💪',
+    color: '#5ba8e0',
+    exercises: [
+      'Patadas con andador: lateral, hacia atrás, hacia delante · 10 rep c/u',
+      'Mini-sentadilla asistida (bajando a silla) · 10 rep',
+      'Gemelos de pie con andador · 15 rep',
+      'Curl de rodilla de pie · 10 rep c/u',
+      'Caminatas de 50–300 m progresivamente',
+      'Escaleras: buena sube primero, mala baja primero',
+      'Semana 12: fin de precauciones de cadera si ok en revisión COT'
+    ]
+  }
+];
+
+// Tareas por fase (horario)
+const TASKS_S1 = [
+  { id:'s1_1', time:'07:30', icon:'🛏️', title:'Activación en cama', sub:'Antes de levantarte: tobillos + isométricos', type:'ex',
+    steps:['Bombeo de tobillos: 20 veces, lento (pie arriba y abajo)','Apretar el muslo contra la cama (cuádriceps) · 10 veces · aguanta 5 segundos cada vez','Apretar las nalgas (glúteos) · 10 veces · aguanta 5 segundos','3 respiraciones profundas por la nariz, sueltas por la boca'] },
+  { id:'s1_2', time:'08:00', icon:'🚶', title:'1ª caminata del día', sub:'Cama → sillón · 5–8 metros con andador', type:'walk',
+    steps:['Siéntate en el borde de la cama · espera 2–3 minutos antes de levantarte (evita mareos)','Levántate apoyando el andador. Peso sobre los dos pies desde el principio.','Camina despacio 5–8 metros hasta el sillón o la silla','Al sentarte: asegúrate de que la cadera quede por encima de la rodilla (silla alta)'] },
+  { id:'s1_3', time:'09:00', icon:'🚶', title:'2ª caminata', sub:'5–8 metros + 30 seg de pie estático', type:'walk',
+    steps:['Camina 5–8 metros con andador','Quédate de pie 30 segundos sin moverte (activa los músculos de la postura)','Vuelve a sentarte despacio'] },
+  { id:'s1_4', time:'10:00', icon:'💪', title:'Ejercicios isométricos', sub:'8 minutos sentado en el sillón', type:'ex',
+    steps:['Isométrico de glúteos · 10 rep · 5 seg cada uno','Isométrico de cuádriceps · 10 rep · 5 seg cada uno','Bombeo de tobillos · 20 rep','Descansa. No hace falta hacer más.'] },
+  { id:'s1_5', time:'10:45', icon:'🚶', title:'3ª caminata', sub:'6–10 metros · objetivo: llegar al baño', type:'walk',
+    steps:['Camina 6–10 metros con andador','Prueba llegar hasta el baño con supervisión','Si usas el WC: usa el alzador de inodoro (no agacharse)'] },
+  { id:'s1_6', time:'12:30', icon:'🚶', title:'4ª caminata', sub:'Traslado al comedor', type:'walk',
+    steps:['Camina 6–10 metros hasta la mesa','Siéntate en silla alta a comer','La cadera siempre por encima de la rodilla al sentarte'] },
+  { id:'s1_7', time:'13:45', icon:'😴', title:'Siesta corta', sub:'Máximo 30–35 minutos tumbado', type:'rest',
+    steps:['Boca arriba o de lado sobre el lado NO operado','Si de lado: pon una almohada entre las rodillas','NO cruzar las piernas · NO boca abajo','Pon la alarma a los 30 minutos'] },
+  { id:'s1_8', time:'14:30', icon:'🚶', title:'5ª caminata', sub:'Reactivación tras la siesta', type:'walk',
+    steps:['Siéntate en el borde de la cama 2 minutos antes de levantarte','Camina 6–10 metros con andador'] },
+  { id:'s1_9', time:'15:30', icon:'💪', title:'Ejercicios isométricos tarde', sub:'8 minutos · mismos que la mañana', type:'ex',
+    steps:['Isométrico de glúteos · 10 rep · 5 seg','Isométrico de cuádriceps · 10 rep · 5 seg','Bombeo de tobillos · 20 rep'] },
+  { id:'s1_10', time:'16:30', icon:'🚶', title:'6ª caminata', sub:'6–10 metros + transferencias', type:'walk',
+    steps:['Camina 6–10 metros con andador','Practica sentarte y levantarte de la silla 3 veces seguidas con apoyo'] },
+  { id:'s1_11', time:'18:30', icon:'🚶', title:'7ª caminata', sub:'5–8 metros · con calma', type:'walk',
+    steps:['Es tarde y puedes estar más cansado · reduce la distancia si lo necesitas','Camina 5–8 metros hacia la cena','Si estás muy cansado: 3–5 metros está bien'] },
+  { id:'s1_12', time:'21:15', icon:'🌙', title:'Última caminata', sub:'Hacia el dormitorio', type:'walk',
+    steps:['3–5 metros hasta el dormitorio','Al dormir: boca arriba con almohada bajo pantorrillas','O de lado sobre el lado sano con almohada entre rodillas','Máximo 8–8,5 horas durmiendo'] }
+];
+
+const TASKS_S2 = [
+  { id:'s2_1', time:'07:30', icon:'🛏️', title:'Activación en cama ampliada', sub:'Isométricos + heel slide', type:'ex',
+    steps:['Bombeo de tobillos · 25 rep','Isométrico cuádriceps · 15 rep × 5 seg','Isométrico glúteos · 15 rep × 5 seg','NUEVO → Heel slide: dobla lentamente la rodilla arrastrando el talón · 10 rep · sin pasar 90° de cadera'] },
+  { id:'s2_2', time:'09:00', icon:'🚶', title:'1ª caminata (15–20 m)', sub:'Objetivo: llegar al baño solo', type:'walk',
+    steps:['Camina 15–20 metros con andador','Meta de esta semana: llegar al baño de forma autónoma','Semana 3: intenta el circuito completo de casa (20–30 m)'] },
+  { id:'s2_3', time:'10:30', icon:'💪', title:'Sesión de ejercicios mañana', sub:'12–15 minutos', type:'ex',
+    steps:['Bombeo de tobillos · 25 rep','Isométrico cuádriceps · 15 rep × 5 seg','Isométrico glúteos · 15 rep × 5 seg','Heel slide sentado · 10–15 rep por pierna','Abducción isométrica: empuja la pierna operada hacia fuera contra una almohada · 10 rep'] },
+  { id:'s2_4', time:'12:30', icon:'🚶', title:'2ª caminata mediodía', sub:'15–25 metros', type:'walk',
+    steps:['Camina 15–25 metros hasta el comedor','Practica transferencia silla → de pie con menos ayuda que antes'] },
+  { id:'s2_5', time:'16:00', icon:'🚶', title:'3ª caminata tarde', sub:'20–30 metros', type:'walk',
+    steps:['Camina 20–30 metros','Semana 3: prueba una salida corta al exterior con acompañante (5–10 min)','Transferencias sentado/de pie · 5–8 veces'] },
+  { id:'s2_6', time:'17:00', icon:'💪', title:'Sesión de ejercicios tarde', sub:'12–15 minutos', type:'ex',
+    steps:['Mismos ejercicios que la sesión de mañana','Semana 4–5 en adelante: añadir elevación de pierna recta tumbado · 8–10 rep (solo si no hay dolor)','3 respiraciones profundas con tos suave al final'] }
+];
+
+const TASKS_S3 = [
+  { id:'s3_1', time:'08:00', icon:'💪', title:'Ejercicios mañana', sub:'Fortalecimiento activo', type:'ex',
+    steps:['Patadas laterales con andador · 10 rep cada pierna','Patadas hacia atrás con andador · 10 rep','Gemelos de pie con andador · 15 rep','Curl de rodilla (doblar rodilla hacia atrás) · 10 rep c/u'] },
+  { id:'s3_2', time:'09:30', icon:'🚶', title:'Caminata mañana', sub:'50–200 m según semana', type:'walk',
+    steps:['Camina a tu ritmo sin prisa','Semana 6–7: 50–120 metros','Semana 8–10: 150–300 metros','Semana 12: 350–500 metros'] },
+  { id:'s3_3', time:'11:00', icon:'🏋️', title:'Mini-sentadilla asistida', sub:'Bajando a la silla · 10 rep', type:'ex',
+    steps:['De pie frente a la silla, con andador delante','Baja despacio como si fueras a sentarte · para a la mitad','Vuelve a subir · 10 repeticiones','No es necesario llegar a sentarte del todo al principio'] },
+  { id:'s3_4', time:'16:00', icon:'🚶', title:'Caminata tarde', sub:'Progresión semanal', type:'walk',
+    steps:['Misma distancia que la caminata de mañana o un poco más','Si vas a las escaleras: buena sube primero, mala baja primero','Siempre con barandilla y acompañante las primeras veces'] },
+  { id:'s3_5', time:'17:00', icon:'💪', title:'Ejercicios tarde', sub:'Segunda sesión', type:'ex',
+    steps:['Repite los ejercicios de la mañana','Añade lo que te haya indicado el fisioterapeuta','Si estás muy cansado: solo bombeo de tobillos e isométricos está bien'] }
+];
+
+// ═══════════════════════════════════════════
+// LÓGICA PRINCIPAL
+// ═══════════════════════════════════════════
+function getDayNumber() {
+  const now = new Date();
+  const diff = now - START_DATE;
+  return Math.max(1, Math.floor(diff / 86400000) + 1);
+}
+
+function getCurrentPhase(day) {
+  return PHASES.find(p => day >= p.days[0] && day <= p.days[1]) || PHASES[2];
+}
+
+function getTasksForDay(day) {
+  if (day <= 7)  return TASKS_S1;
+  if (day <= 35) return TASKS_S2;
+  return TASKS_S3;
+}
+
+const STORAGE_KEY = 'rehab_done_';
+
+function getDoneKey(day) { return STORAGE_KEY + day; }
+
+function getDone(day) {
+  try { return JSON.parse(localStorage.getItem(getDoneKey(day)) || '[]'); }
+  catch { return []; }
+}
+
+function setDone(day, ids) {
+  try { localStorage.setItem(getDoneKey(day), JSON.stringify(ids)); } catch {}
+}
+
+// ═══════════════════════════════════════════
+// RENDER HOY
+// ═══════════════════════════════════════════
+let currentDay, currentTasks, doneTasks;
+
+function renderHoy() {
+  currentDay = getDayNumber();
+  const phase = getCurrentPhase(currentDay);
+  currentTasks = getTasksForDay(currentDay);
+  doneTasks = getDone(currentDay);
+
+  // Header
+  const now = new Date();
+  document.getElementById('hdr-date').textContent =
+    now.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('phase-icon').textContent = phase.icon;
+  document.getElementById('phase-name').textContent = phase.name;
+  document.getElementById('day-num').textContent = currentDay;
+
+  updateProgress();
+
+  // Encontrar próxima tarea
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  let nextTask = null;
+  for (const t of currentTasks) {
+    const [h,m] = t.time.split(':').map(Number);
+    const tMin = h*60+m;
+    if (tMin > nowMin && !doneTasks.includes(t.id)) { nextTask = t; break; }
+  }
+
+  const list = document.getElementById('task-list');
+  list.innerHTML = '';
+
+  // Banner próxima tarea
+  if (nextTask) {
+    const b = document.createElement('div');
+    b.className = 'next-banner';
+    b.innerHTML = `
+      <div class="next-icon">${nextTask.icon}</div>
+      <div>
+        <div class="next-label">Próxima tarea</div>
+        <div class="next-title">${nextTask.title}</div>
+        <div class="next-time">A las ${nextTask.time} · ${nextTask.sub}</div>
+      </div>`;
+    list.appendChild(b);
+  }
+
+  // Lista de tareas
+  const walkHead = document.createElement('div');
+  walkHead.className = 'section-head';
+  walkHead.textContent = `📋 Plan del día · ${currentTasks.length} tareas`;
+  list.appendChild(walkHead);
+
+  for (const t of currentTasks) {
+    const isDone = doneTasks.includes(t.id);
+    const div = document.createElement('div');
+    div.className = 'task' + (isDone ? ' done' : '');
+    div.dataset.id = t.id;
+    const badgeClass = t.type === 'walk' ? 'badge-walk' : t.type === 'ex' ? 'badge-ex' : 'badge-rest';
+    const badgeLabel = t.type === 'walk' ? 'Caminata' : t.type === 'ex' ? 'Ejercicio' : 'Descanso';
+    div.innerHTML = `
+      <div class="task-inner">
+        <div class="task-check">${isDone ? '✓' : ''}</div>
+        <div class="task-icon">${t.icon}</div>
+        <div class="task-body">
+          <div class="task-time">${t.time}</div>
+          <div class="task-title">${t.title}</div>
+          <div class="task-sub">${t.sub}</div>
+        </div>
+        <div class="task-badge ${badgeClass}">${badgeLabel}</div>
+      </div>`;
+    div.addEventListener('click', () => openTask(t));
+    list.appendChild(div);
+  }
+}
+
+function updateProgress() {
+  const total = currentTasks.length;
+  const done = doneTasks.length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+function openTask(t) {
+  document.getElementById('modal-icon').textContent = t.icon;
+  document.getElementById('modal-title').textContent = t.title;
+  document.getElementById('modal-sub').textContent = `${t.time} · ${t.sub}`;
+  const stepsList = document.getElementById('modal-steps');
+  stepsList.innerHTML = '';
+  (t.steps || []).forEach((s, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="step-num">${i+1}</div><div>${s}</div>`;
+    stepsList.appendChild(li);
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+
+  // Al cerrar, marca como hecho
+  document.querySelector('.modal-close').onclick = () => {
+    markDone(t.id);
+    closeModalDirect();
+  };
+}
+
+function markDone(id) {
+  if (!doneTasks.includes(id)) {
+    doneTasks.push(id);
+    setDone(currentDay, doneTasks);
+    updateProgress();
+    // Update card
+    const card = document.querySelector(`.task[data-id="${id}"]`);
+    if (card) {
+      card.classList.add('done');
+      card.querySelector('.task-check').textContent = '✓';
+    }
+    // Celebrar si todo hecho
+    if (doneTasks.length === currentTasks.length) {
+      showConfetti();
+      showToast('🎉 ¡Día completado! Muy bien.');
+    } else {
+      showToast('✓ Tarea completada');
+    }
+  }
+}
+
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+}
+
+// ═══════════════════════════════════════════
+// RENDER PROTOCOLO
+// ═══════════════════════════════════════════
+function renderProtocol() {
+  const day = getDayNumber();
+  const list = document.getElementById('protocol-list');
+  list.innerHTML = '';
+  PHASES.forEach(ph => {
+    const isCurrent = day >= ph.days[0] && day <= ph.days[1];
+    const isPast = day > ph.days[1];
+    const div = document.createElement('div');
+    div.className = 'proto-phase';
+    const statusClass = isCurrent ? 'current' : isPast ? 'done-ph' : 'future';
+    const statusLabel = isCurrent ? '● AHORA' : isPast ? '✓ Completada' : 'Próxima';
+    div.innerHTML = `
+      <div class="proto-head" onclick="toggleProto(this)">
+        <div>
+          <div class="proto-name">${ph.icon} ${ph.name}</div>
+          <div class="proto-range">${ph.range}</div>
+        </div>
+        <div class="proto-status ${statusClass}">${statusLabel}</div>
+      </div>
+      <div class="proto-body ${isCurrent ? 'open' : ''}">
+        ${ph.exercises.map(e => `<div class="proto-ex">${e}</div>`).join('')}
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function toggleProto(head) {
+  const body = head.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════
+// NOTIFICACIONES
+// ═══════════════════════════════════════════
+function buildNotifList() {
+  const day = getDayNumber();
+  const tasks = getTasksForDay(day);
+  const listEl = document.getElementById('notif-list');
+  listEl.innerHTML = '';
+  tasks.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'notif-row';
+    row.innerHTML = `
+      <div>
+        <div class="notif-time">${t.time}</div>
+        <div class="notif-desc">${t.title}</div>
+      </div>
+      <div>${t.icon}</div>`;
+    listEl.appendChild(row);
+  });
+}
+
+let notifScheduled = false;
+
+async function requestNotifications() {
+  if (!('Notification' in window)) {
+    showToast('Este navegador no soporta notificaciones');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    scheduleNotifications();
+    showToast('✓ Recordatorios activados');
+  } else {
+    showToast('Permiso denegado. Actívalo en ajustes.');
+  }
+}
+
+function scheduleNotifications() {
+  if (notifScheduled) return;
+  notifScheduled = true;
+  const day = getDayNumber();
+  const tasks = getTasksForDay(day);
+  const now = new Date();
+
+  tasks.forEach(t => {
+    const [h, m] = t.time.split(':').map(Number);
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+    const delay = target - now;
+    if (delay > 0) {
+      setTimeout(() => {
+        if (Notification.permission === 'granted') {
+          new Notification(`${t.icon} ${t.title}`, {
+            body: t.sub,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: t.id
+          });
+        }
+      }, delay);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// NAVEGACIÓN
+// ═══════════════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'protocolo') renderProtocol();
+  if (name === 'notif') buildNotifList();
+}
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function showConfetti() {
+  const wrap = document.getElementById('confetti');
+  wrap.innerHTML = '';
+  const colors = ['#4caf72','#f5a623','#5ba8e0','#e8f5e8','#ffd700'];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement('div');
+    c.className = 'cf';
+    c.style.cssText = `
+      left:${Math.random()*100}%;
+      top:${-Math.random()*20}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-delay:${Math.random()*0.5}s;
+      width:${6+Math.random()*8}px;
+      height:${6+Math.random()*8}px;
+    `;
+    wrap.appendChild(c);
+  }
+  setTimeout(() => wrap.innerHTML = '', 2000);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  renderHoy();
+
+  // Auto-schedule si ya hay permiso
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    scheduleNotifications();
+  }
+
+  // Refrescar a medianoche
+  const msToMidnight = new Date().setHours(24,0,0,0) - Date.now();
+  setTimeout(() => { renderHoy(); notifScheduled = false; scheduleNotifications(); }, msToMidnight);
+});
+</script>
+</body>
+</html>
