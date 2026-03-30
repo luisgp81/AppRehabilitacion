@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a2e1a" />
+  <meta name="description" content="App de rehabilitación con recordatorios de ejercicios" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Rehab" />
+  <title>Mi Rehabilitación</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a2e1a'/%3E%3Ctext y='.9em' font-size='90' x='10'%3E🏥%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #0f1f0f;
+      --surface: #1a2e1a;
+      --surface2: #243824;
+      --accent: #4caf50;
+      --accent2: #81c784;
+      --text: #e8f5e9;
+      --text2: #a5d6a7;
+      --danger: #ef5350;
+      --warn: #ffb300;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: var(--surface);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.4);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 1.3rem; color: var(--accent2); }
+    header span { font-size: 1.6rem; }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      margin-left: auto;
+      transition: background .3s;
+    }
+    .status-dot.active { background: var(--accent); }
+    main {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+    .card h2 {
+      font-size: 1rem;
+      color: var(--accent2);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    /* Notificaciones */
+    .notif-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: .9rem;
+      color: var(--text2);
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .badge-ok { background: #1b5e20; color: #a5d6a7; }
+    .badge-warn { background: #4a3000; color: #ffb300; }
+    .badge-err { background: #4a0000; color: #ef9a9a; }
+    .schedule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .schedule-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: .9rem;
+    }
+    .schedule-item .time {
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 48px;
+    }
+    .schedule-item .label { flex: 1; }
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .del-btn:hover { background: rgba(239,83,80,.15); }
+    .add-row {
+      display: flex;
+      gap: 8px;
+    }
+    .add-row input[type=time], .add-row input[type=text] {
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: .9rem;
+      outline: none;
+    }
+    .add-row input[type=time] { width: 110px; }
+    .add-row input[type=text] { flex: 1; }
+    .btn {
+      background: var(--accent);
+      color: #0f1f0f;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn:hover { background: var(--accent2); }
+    .btn:active { transform: scale(.97); }
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .btn-outline:hover { background: rgba(76,175,80,.1); }
+    /* Ejercicios */
+    .exercise-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .exercise-card {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color .2s, transform .1s;
+      user-select: none;
+    }
+    .exercise-card:hover { border-color: var(--accent); }
+    .exercise-card.done { border-color: var(--accent); background: #1b3a1b; }
+    .exercise-card .icon { font-size: 2rem; display: block; margin-bottom: 4px; }
+    .exercise-card .name { font-size: .8rem; color: var(--text2); }
+    .exercise-card .reps { font-size: 1rem; font-weight: 700; color: var(--accent); }
+    /* Progreso */
+    .progress-bar-wrap {
+      background: var(--surface2);
+      border-radius: 20px;
+      height: 16px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #2e7d32, #66bb6a);
+      border-radius: 20px;
+      transition: width .5s ease;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .85rem;
+      color: var(--text2);
+    }
+    /* Historial */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: .85rem;
+    }
+    .history-item .hi-time { color: var(--text2); font-size: .75rem; }
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: .9rem;
+      z-index: 999;
+      transition: transform .3s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    /* Timer */
+    .timer-display {
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: center;
+      color: var(--accent);
+      letter-spacing: 4px;
+      margin: 8px 0;
+    }
+    .timer-btns { display: flex; gap: 8px; justify-content: center; }
+    footer {
+      text-align: center;
+      padding: 12px;
+      color: var(--text2);
+      font-size: .75rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🏥</span>
+  <h1>Mi Rehabilitación</h1>
+  <div class="status-dot" id="notifDot" title="Estado notificaciones"></div>
+</header>
+
+<main>
+
+  <!-- Notificaciones -->
+  <div class="card">
+    <h2>🔔 Recordatorios</h2>
+    <div class="notif-status">
+      <span>Permisos:</span>
+      <span class="badge badge-warn" id="permBadge">comprobando…</span>
+    </div>
+    <div class="schedule-list" id="scheduleList"></div>
+    <div class="add-row">
+      <input type="time" id="newTime" value="09:00" />
+      <input type="text" id="newLabel" placeholder="Ej: Ejercicios de cadera" maxlength="60" />
+      <button class="btn" onclick="addReminder()">+</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="requestNotifPermission()">Activar notificaciones</button>
+      <button class="btn btn-outline" onclick="testNotification()">Probar ahora</button>
+    </div>
+  </div>
+
+  <!-- Ejercicios del día -->
+  <div class="card">
+    <h2>🏋️ Ejercicios de hoy</h2>
+    <div class="progress-label">
+      <span id="doneCount">0 completados</span>
+      <span id="totalCount">de 0</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progressBar" style="width:0%"></div>
+    </div>
+    <div class="exercise-grid" id="exerciseGrid"></div>
+  </div>
+
+  <!-- Temporizador -->
+  <div class="card">
+    <h2>⏱️ Temporizador</h2>
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <div class="timer-btns">
+      <button class="btn" id="timerStartBtn" onclick="timerToggle()">Iniciar</button>
+      <button class="btn btn-outline" onclick="timerReset()">Reiniciar</button>
+    </div>
+  </div>
+
+  <!-- Historial -->
+  <div class="card">
+    <h2>📋 Historial de hoy</h2>
+    <div class="history-list" id="historyList"><p style="color:var(--text2);font-size:.85rem">Sin registros todavía.</p></div>
+    <button class="btn btn-outline" style="margin-top:10px;width:100%" onclick="clearHistory()">Limpiar historial</button>
+  </div>
+
+</main>
+
+<footer>Mi Rehabilitación PWA · Funciona sin conexión</footer>
+<div id="toast"></div>
+
+<script>
+// ─── Service Worker ───────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    console.log('SW registrado:', reg.scope);
+  }).catch(err => console.warn('SW error:', err));
+}
+
+// ─── Estado ──────────────────────────────────────────────────────────────────
+const STORAGE_KEYS = {
+  reminders: 'rehab_reminders',
+  history:   'rehab_history',
+  exercises: 'rehab_exercises',
+};
+
+const DEFAULT_EXERCISES = [
+  { id:1, icon:'🦵', name:'Flexión rodilla',  reps:'3×10', done:false },
+  { id:2, icon:'🦶', name:'Tobillo circular', reps:'2×15', done:false },
+  { id:3, icon:'💪', name:'Fortalec. cuádric.',reps:'3×12', done:false },
+  { id:4, icon:'🧘', name:'Estiramiento',      reps:'5 min',done:false },
+  { id:5, icon:'🚶', name:'Marcha en sitio',   reps:'10 min',done:false},
+  { id:6, icon:'⬆️', name:'Elevación pierna',  reps:'3×10', done:false },
+];
+
+let reminders = JSON.parse(localStorage.getItem(STORAGE_KEYS.reminders) || '[]');
+let history   = JSON.parse(localStorage.getItem(STORAGE_KEYS.history)   || '[]');
+let exercises = JSON.parse(localStorage.getItem(STORAGE_KEYS.exercises)  || 'null') || resetExercises();
+
+const notifTimers = [];
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ─── Notificaciones ──────────────────────────────────────────────────────────
+async function requestNotifPermission() {
+  if (!('Notification' in window)) {
+    showToast('❌ Este navegador no soporta notificaciones');
+    return;
+  }
+  const result = await Notification.requestPermission();
+  updatePermBadge();
+  if (result === 'granted') {
+    showToast('✅ Notificaciones activadas');
+    scheduleAllReminders();
+  } else {
+    showToast('⚠️ Permiso denegado. Actívalo en ajustes del navegador.');
+  }
+}
+
+function updatePermBadge() {
+  const badge = document.getElementById('permBadge');
+  const dot   = document.getElementById('notifDot');
+  if (!('Notification' in window)) {
+    badge.textContent = 'no soportado';
+    badge.className = 'badge badge-err';
+    return;
+  }
+  const p = Notification.permission;
+  if (p === 'granted') {
+    badge.textContent = 'activadas ✓';
+    badge.className = 'badge badge-ok';
+    dot.classList.add('active');
+  } else if (p === 'denied') {
+    badge.textContent = 'bloqueadas ✗';
+    badge.className = 'badge badge-err';
+    dot.classList.remove('active');
+  } else {
+    badge.textContent = 'pendiente';
+    badge.className = 'badge badge-warn';
+    dot.classList.remove('active');
+  }
+}
+
+function testNotification() {
+  if (Notification.permission !== 'granted') {
+    requestNotifPermission();
+    return;
+  }
+  fireNotification('🏥 Mi Rehabilitación', '¡Es hora de hacer tus ejercicios!');
+  showToast('Notificación de prueba enviada');
+}
+
+function fireNotification(title, body) {
+  navigator.serviceWorker.ready.then(reg => {
+    reg.showNotification(title, {
+      body,
+      icon: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%231a2e1a\'/%3E%3Ctext y=\'.9em\' font-size=\'90\' x=\'10\'%3E🏥%3C/text%3E%3C/svg%3E',
+      badge: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%231a2e1a\'/%3E%3Ctext y=\'.9em\' font-size=\'90\' x=\'10\'%3E🏥%3C/text%3E%3C/svg%3E',
+      vibrate: [200, 100, 200],
+      tag: 'rehab-reminder',
+      renotify: true,
+    });
+  }).catch(() => {
+    // Fallback si SW no está listo
+    new Notification(title, { body, tag: 'rehab-reminder' });
+  });
+}
+
+// ─── Recordatorios programados ────────────────────────────────────────────────
+function scheduleAllReminders() {
+  // Cancelar timers previos
+  notifTimers.forEach(id => clearTimeout(id));
+  notifTimers.length = 0;
+
+  if (Notification.permission !== 'granted') return;
+
+  reminders.forEach(r => scheduleReminder(r));
+}
+
+function scheduleReminder(reminder) {
+  const now   = new Date();
+  const [hh, mm] = reminder.time.split(':').map(Number);
+  const target  = new Date(now);
+  target.setHours(hh, mm, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1); // mañana
+
+  const delay = target - now;
+  const id = setTimeout(() => {
+    fireNotification('🏥 Mi Rehabilitación', reminder.label || '¡Es hora de tus ejercicios!');
+    addHistoryEntry(`Recordatorio: ${reminder.label || reminder.time}`);
+    // Re-programar para el día siguiente
+    scheduleReminder(reminder);
+  }, delay);
+  notifTimers.push(id);
+}
+
+// ─── CRUD recordatorios ───────────────────────────────────────────────────────
+function addReminder() {
+  const time  = document.getElementById('newTime').value;
+  const label = document.getElementById('newLabel').value.trim() || '¡Hora de ejercitarte!';
+  if (!time) return;
+  reminders.push({ id: Date.now(), time, label });
+  saveReminders();
+  renderReminders();
+  scheduleAllReminders();
+  showToast(`Recordatorio añadido para las ${time}`);
+  document.getElementById('newLabel').value = '';
+}
+
+function deleteReminder(id) {
+  reminders = reminders.filter(r => r.id !== id);
+  saveReminders();
+  renderReminders();
+  scheduleAllReminders();
+  showToast('Recordatorio eliminado');
+}
+
+function saveReminders() {
+  localStorage.setItem(STORAGE_KEYS.reminders, JSON.stringify(reminders));
+}
+
+function renderReminders() {
+  const list = document.getElementById('scheduleList');
+  if (!reminders.length) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:.85rem;margin-bottom:6px">Sin recordatorios. Añade uno abajo.</p>';
+    return;
+  }
+  list.innerHTML = reminders
+    .sort((a,b) => a.time.localeCompare(b.time))
+    .map(r => `
+      <div class="schedule-item">
+        <span class="time">${r.time}</span>
+        <span class="label">${escapeHtml(r.label)}</span>
+        <button class="del-btn" onclick="deleteReminder(${r.id})" title="Eliminar">✕</button>
+      </div>`
+    ).join('');
+}
+
+// ─── Ejercicios ───────────────────────────────────────────────────────────────
+function resetExercises() {
+  return JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
+}
+
+function toggleExercise(id) {
+  const ex = exercises.find(e => e.id === id);
+  if (!ex) return;
+  ex.done = !ex.done;
+  if (ex.done) addHistoryEntry(`Completado: ${ex.name} (${ex.reps})`);
+  saveExercises();
+  renderExercises();
+}
+
+function saveExercises() {
+  localStorage.setItem(STORAGE_KEYS.exercises, JSON.stringify(exercises));
+}
+
+function renderExercises() {
+  const grid = document.getElementById('exerciseGrid');
+  grid.innerHTML = exercises.map(e => `
+    <div class="exercise-card ${e.done ? 'done' : ''}" onclick="toggleExercise(${e.id})">
+      <span class="icon">${e.icon}</span>
+      <div class="name">${e.name}</div>
+      <div class="reps">${e.reps}</div>
+      ${e.done ? '<div style="font-size:.7rem;color:var(--accent);margin-top:3px">✓ Hecho</div>' : ''}
+    </div>`
+  ).join('');
+  const done  = exercises.filter(e => e.done).length;
+  const total = exercises.length;
+  document.getElementById('doneCount').textContent  = `${done} completados`;
+  document.getElementById('totalCount').textContent  = `de ${total}`;
+  document.getElementById('progressBar').style.width = `${(done/total)*100}%`;
+  if (done === total && total > 0) {
+    showToast('🎉 ¡Completaste todos los ejercicios de hoy!');
+  }
+}
+
+// ─── Historial ────────────────────────────────────────────────────────────────
+function addHistoryEntry(text) {
+  const now = new Date();
+  const time = now.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+  history.unshift({ text, time, date: now.toLocaleDateString('es-ES') });
+  if (history.length > 100) history.pop();
+  localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
+  renderHistory();
+}
+
+function clearHistory() {
+  history = [];
+  localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
+  renderHistory();
+  showToast('Historial borrado');
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!history.length) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:.85rem">Sin registros todavía.</p>';
+    return;
+  }
+  const today = new Date().toLocaleDateString('es-ES');
+  const todayItems = history.filter(h => h.date === today);
+  if (!todayItems.length) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:.85rem">Sin registros hoy.</p>';
+    return;
+  }
+  list.innerHTML = todayItems.map(h => `
+    <div class="history-item">
+      <span>${escapeHtml(h.text)}</span>
+      <span class="hi-time">${h.time}</span>
+    </div>`
+  ).join('');
+}
+
+// ─── Temporizador ─────────────────────────────────────────────────────────────
+let timerSeconds = 0;
+let timerRunning = false;
+let timerInterval = null;
+
+function timerToggle() {
+  timerRunning = !timerRunning;
+  document.getElementById('timerStartBtn').textContent = timerRunning ? 'Pausar' : 'Reanudar';
+  if (timerRunning) {
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      renderTimer();
+    }, 1000);
+  } else {
+    clearInterval(timerInterval);
+  }
+}
+
+function timerReset() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerSeconds = 0;
+  document.getElementById('timerStartBtn').textContent = 'Iniciar';
+  renderTimer();
+}
+
+function renderTimer() {
+  const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+  const s = String(timerSeconds % 60).padStart(2, '0');
+  document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Reset diario ─────────────────────────────────────────────────────────────
+(function checkDailyReset() {
+  const lastDate = localStorage.getItem('rehab_last_date');
+  const today    = new Date().toDateString();
+  if (lastDate !== today) {
+    exercises = resetExercises();
+    saveExercises();
+    localStorage.setItem('rehab_last_date', today);
+  }
+})();
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+updatePermBadge();
+renderReminders();
+renderExercises();
+renderHistory();
+if (Notification.permission === 'granted') scheduleAllReminders();
+</script>
+</body>
+</html>
