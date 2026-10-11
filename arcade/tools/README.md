@@ -32,3 +32,12 @@ python3 tools/process_frames.py --char luis                # 3) croma, separar, 
 - El juego usa los fotogramas en cuanto existe el atlas (`js/frame-index.js`); si falta una animación, la cubre el rig.
 - Repetir una animación concreta: `--only lp,sk --force`. Modelo más barato: `--model gemini-3.1-flash-image-preview`.
 - Prueba del pipeline sin gastar API: `node tests/pipeline.test.cjs` (servidor que imita la API).
+
+## Vía gratuita sin API (recomendada): chat + importador
+
+1. Abre `tools/taller-sprites.html` (o la versión publicada): 81 prompts en orden, por personaje y fase.
+2. Genera en ChatGPT, Gemini o Copilot (planes gratuitos): una conversación por personaje, primero la ficha con la imagen
+   de `assets/reference/<id>.png` adjunta y luego el resto en la misma conversación.
+3. Importa por código y procesa:
+   `python3 tools/import_frames.py LUIS-00 ficha.png LUIS-03 punetazo.png` → `python3 tools/process_frames.py --char luis`
+   Acepta fondos no croma (los quita BiRefNet en local) y entregas parciales (la ficha hace de guardia hasta que llegue «idle»).

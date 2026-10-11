@@ -95,12 +95,14 @@ def pack(frames, maxw=2048):
 
 def process(cid, H):
     src = RAW / cid
-    if not (src / 'idle.png').exists():
-        print(f'{cid}: falta raw/{cid}/idle.png, se omite'); return False
     per = {}
     for an, (n, _) in ANIMS.items():
         p = src / f'{an}.png'
         if p.exists(): per[an] = split(remove_bg(Image.open(p)), n)
+    if 'idle' not in per and (src / 'sheet.png').exists():
+        per['idle'] = split(remove_bg(Image.open(src / 'sheet.png')), 1)  # entrega parcial: la ficha hace de guardia
+    if 'idle' not in per:
+        print(f'{cid}: faltan raw/{cid}/idle.png y sheet.png, se omite'); return False
     idleH = np.median([f.height for f in per['idle']])
     allf, meta = [], {}
     for an, frs in per.items():
