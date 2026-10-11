@@ -4,7 +4,7 @@ const OUT = '#170f22';
 const FONT = "'Press Start 2P', 'Courier New', monospace";
 
 // ── Poses (ángulos en radianes: 0 = hacia abajo, +π/2 = hacia delante) ──
-const BASE_POSE = { lean: 0.08, head: 0, a1: 0.6, a2: 1.9, b1: 0.95, b2: 1.65, l1: -0.25, l2: -0.3, m1: 0.5, m2: -0.42, lift: 0 };
+const BASE_POSE = { lean: 0.08, head: 0, a1: 0.6, a2: 1.9, b1: 0.95, b2: 1.65, l1: -0.25, l2: -0.3, m1: 0.5, m2: -0.42, lift: 0, rigid: 0 };
 const P = o => Object.assign({}, BASE_POSE, o);
 const CROUCH = { lean: 0.3, l1: 0.95, l2: -2.05, m1: 1.35, m2: -1.95, a1: 0.9, a2: 1.7, b1: 1.1, b2: 1.5 };
 const POSES = {
@@ -37,8 +37,8 @@ const POSES = {
   hitC: P(Object.assign({}, CROUCH, { lean: -0.1, head: -0.35, b1: 0.3, b2: 1.0 })),
   block: P({ lean: -0.06, a1: 1.25, a2: 1.95, b1: 1.38, b2: 2.05, l1: -0.4, l2: -0.2 }),
   blockC: P(Object.assign({}, CROUCH, { lean: 0.15, a1: 1.25, a2: 1.95, b1: 1.38, b2: 2.05 })),
-  launched: P({ lean: -0.9, head: -0.4, a1: -0.6, a2: 0.4, b1: -0.2, b2: 0.6, l1: 0.5, l2: -0.8, m1: 0.9, m2: -0.5 }),
-  down: P({ lean: -1.52, head: -0.2, a1: -1.9, a2: 0.2, b1: -1.4, b2: 0.4, l1: 1.45, l2: 0.05, m1: 1.5, m2: -0.05, lift: 7 }),
+  launched: P({ lean: -0.9, head: -0.4, a1: -0.6, a2: 0.4, b1: -0.2, b2: 0.6, l1: 0.5, l2: -0.8, m1: 0.9, m2: -0.5, rigid: -0.7 }),
+  down: P({ lean: -1.52, head: -0.2, a1: -1.9, a2: 0.2, b1: -1.4, b2: 0.4, l1: 1.45, l2: 0.05, m1: 1.5, m2: -0.05, lift: 7, rigid: -1.5 }),
   getup: P({ lean: 0.5, l1: 0.95, l2: -2.05, m1: 1.35, m2: -1.95, a1: 0.2, a2: 0.3, b1: 0.4, b2: 0.3 }),
   win: P({ lean: -0.05, b1: 3.0, b2: 0.25, a1: 0.25, a2: 1.6, l1: -0.25, l2: -0.1, m1: 0.35, m2: -0.1 }),
   dash: P({ lean: 0.38, l1: -0.6, l2: -0.2, m1: 0.8, m2: -0.6 }),
@@ -261,6 +261,10 @@ function drawHead(ctx, L, x, y, r, ang, expr, t) {
 
 // Dibuja un luchador en (x, groundY) con su pose. opts: {scale, facing, pose, alpha, expr, glow, silhouette}
 function drawFighterAt(ctx, L, x, gy, pose, facing, t, opts = {}) {
+  if (!opts.puppet && typeof SpriteRig !== 'undefined' && SpriteRig.has(L.head)) {
+    const rest = opts.state === 'win' && RIGS[L.head].winRest;
+    if (SpriteRig.draw(ctx, L.head, x, gy, pose, facing, { scale: opts.scale, glow: opts.glow, flash: opts.flash, alt: L.isAlt, rest })) return;
+  }
   const s = L.scale * (opts.scale || 1), p = pose, bulk = L.bulk;
   ctx.save(); ctx.translate(x, gy); ctx.scale(facing * s, s);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -379,9 +383,27 @@ const Stage = {
     // altavoces / flight cases
     const amp = (x) => { g.fillStyle = '#111'; g.fillRect(x, 248, 40, 50); g.fillStyle = '#2a2a2a'; g.beginPath(); g.arc(x + 20, 266, 11, 0, 7); g.fill(); g.beginPath(); g.arc(x + 20, 288, 6, 0, 7); g.fill(); g.strokeStyle = '#555'; g.strokeRect(x + 1, 249, 38, 48); };
     amp(30); amp(570);
+    // tramado ordenado + paleta reducida: textura de fondo pixel-art (estilo placa arcade)
+    const id = g.getImageData(0, 0, W, H), d = id.data;
+    const B = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    const lv = 10, stp = 255 / (lv - 1);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4, th = (B[(y & 3) * 4 + (x & 3)] / 16 - 0.5) * stp;
+      for (let k = 0; k < 3; k++) d[i + k] = Math.max(0, Math.min(255, Math.round((d[i + k] + th) / stp) * stp));
+    }
+    g.putImageData(id, 0, 0);
     this.bg = c;
   },
+  // Se pinta a resolución lógica y se escala sin suavizado: píxel gordo a juego con los sprites
   draw(ctx, t) {
+    if (!this.lo) { this.lo = document.createElement('canvas'); this.lo.width = W; this.lo.height = H; }
+    const lc = this.lo.getContext('2d');
+    this.drawLo(lc, t);
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.lo, 0, 0, W, H);
+    ctx.imageSmoothingEnabled = sm;
+  },
+  drawLo(ctx, t) {
     ctx.drawImage(this.bg, 0, 0);
     // brillo del mar
     ctx.fillStyle = 'rgba(255,200,140,0.45)';

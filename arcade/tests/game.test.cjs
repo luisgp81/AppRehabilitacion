@@ -31,7 +31,8 @@ const results = [];
 async function main() {
   const srv = await serve();
   const base = `http://localhost:${srv.address().port}/index.html`;
-  const browser = await chromium.launch();
+  // SwiftShader explícito: el respaldo automático de WebGL en headless es ~40x más lento y no representa un navegador real
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 
   async function open(q = '') {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -90,6 +91,46 @@ async function main() {
     await p.shot('t01-title');
     assert(p.errs.length === 0, p.errs.join('; '));
     await p.close();
+  });
+
+  await test('Sprites HD: cargan en WebGL, se dibujan y cuestan poco por frame', async open => {
+    const p = await open();
+    await p.waitForFunction(() => SA.ready, null, { timeout: 20000 });
+    const r = await p.g(() => ({ ok: SA.sprites, has: ['luis', 'jc', 'sebas'].map(id => SpriteRig.has(id)), layers: ['luis', 'jc', 'sebas'].map(id => SpriteRig.rigs[id].layers.length) }));
+    assert(r.ok && r.has.every(Boolean), 'sprites no disponibles ' + JSON.stringify(r));
+    assert(r.layers.every(n => n === 5), 'capas por personaje (base + 2 piezas por brazo) ' + r.layers);
+    await p.g(() => { const g = SA.game; g.startSelect('cpu'); g.beginMatch(0, 2); g.startRound(); });
+    await p.step(130);
+    // el luchador cambia de verdad los píxeles de su zona (comparado con la escena sin él)
+    const changed = await p.g(() => {
+      const g = SA.game, c = g.ctx, f = g.f1;
+      const rx = Math.round((f.x - 45) * RES), ry = Math.round((GROUND - 170) * RES), rw = 90 * RES, rh = 160 * RES;
+      g.render(); const a = c.getImageData(rx, ry, rw, rh).data;
+      const x0 = f.x; f.x = -500; g.render(); const b = c.getImageData(rx, ry, rw, rh).data; f.x = x0;
+      let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 60) n++;
+      return n / (rw * rh);
+    });
+    assert(changed > 0.2, 'el sprite apenas aparece en pantalla: ' + changed.toFixed(3));
+    await p.close();
+    const p2 = await open();
+    await p2.waitForFunction(() => SA.ready, null, { timeout: 20000 });
+    const t = await p2.g(() => { const g = SA.game; g.startSelect('cpu'); g.beginMatch(1, 2); g.startRound(); SA.step(120);
+      const t0 = performance.now(); for (let i = 0; i < 60; i++) g.render(); return (performance.now() - t0) / 60; });
+    results.push([`   ↳ render de combate: ${t.toFixed(2)} ms/frame (Chromium headless, SwiftShader)`, true]);
+    assert(t < 16, 'render demasiado lento: ' + t);
+    await p2.close();
+  });
+
+  await test('Funciona abriendo index.html con file:// (sprites embebidos)', async () => {
+    const page = await browser.newPage();
+    const errs = []; page.on('pageerror', e => errs.push(e.message));
+    await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+    await page.goto('file://' + path.join(ROOT, 'index.html') + '?test=1');
+    await page.waitForFunction(() => window.SA && SA.ready, null, { timeout: 20000 });
+    const ok = await page.evaluate(() => SA.sprites && SpriteRig.has('luis'));
+    assert(ok, 'sin sprites en file://');
+    assert(errs.length === 0, errs.join('; '));
+    await page.close();
   });
 
   await test('Menús: opciones (persisten), controles (4 páginas) y volver', async open => {

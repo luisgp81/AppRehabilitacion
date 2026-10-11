@@ -14,7 +14,7 @@
   html, body { height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
   body { display: flex; align-items: center; justify-content: center; font-family: 'Press Start 2P', monospace; }
   #wrap { position: relative; width: min(100vw, calc(100vh * 16 / 9)); width: min(100vw, calc(100dvh * 16 / 9)); aspect-ratio: 16 / 9; }
-  canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; background: #000; box-shadow: 0 0 40px rgba(232,66,58,0.25); }
+  canvas { width: 100%; height: 100%; display: block; background: #000; box-shadow: 0 0 40px rgba(232,66,58,0.25); }
   #touch { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 5; }
   #touch.show { display: block; }
   #tpad { position: absolute; left: max(16px, env(safe-area-inset-left)); bottom: 18px; width: 150px; height: 150px; border-radius: 50%; background: var(--btn); border: 2px solid rgba(255,255,255,0.25); pointer-events: auto; touch-action: none; }
@@ -31,7 +31,7 @@
 </style>
 </head>
 <body>
-  <div id="wrap"><canvas id="game" width="640" height="360" aria-label="Juego de lucha Selección Arcade"></canvas></div>
+  <div id="wrap"><canvas id="game" width="1280" height="720" aria-label="Juego de lucha Selección Arcade"></canvas></div>
   <div id="touch" aria-hidden="true">
     <div id="tpad"><div id="tknob"></div></div>
     <div class="tb" data-btn="p">P</div>
@@ -46,6 +46,8 @@
   <script src="js/characters.js"></script>
   <script src="js/fighter.js"></script>
   <script src="js/render.js"></script>
+  <script src="js/sprite-data.js"></script>
+  <script src="js/sprites.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/game.js"></script>
 </body>

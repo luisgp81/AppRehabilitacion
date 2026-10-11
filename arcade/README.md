@@ -22,7 +22,7 @@ También funciona abriendo `arcade/index.html` directamente (doble clic), aunque
 | | Luis · El Director | Juan Carlos · El Submarino | Sebas · El Videoclub |
 |---|---|---|---|
 | Estilo | Equilibrado | Potencia (más vida y daño, más lento) | Velocidad (salta más, menos vida) |
-| Look | Pelo canoso ondulado, barba, cinta roja, traje azul marino con corbata, zapatillas rojas | Calvo, barba blanca, chaleco de cuero con tachuelas, bufanda amarilla y azul, vaqueros | Gafas, pelo oscuro con canas, barba, chaqueta azul con emblema de rayo |
+| Look (sprite de la imagen de referencia) | Pelo canoso, barba, cinta roja, kimono recoloreado a azul marino, zapatillas rojas | Calvo, barba blanca, chaleco de cuero con tachuelas, vaqueros, botas | Gafas, barba, mono azul con emblema de rayo propio |
 | Proyectil | Transferencia Inmediata (moneda €) | ¡POW! Viñetazo (viñeta de cómic) | Rebobinado VHS (cinta) |
 | Antiaéreo | Subida del Euríbor | Claqueta Final | Cuernos Heavy |
 | Embestida | Remix Sónico (patada giratoria, 3 golpes) | Submarino Amarillo (carga, 2 golpes) | Patinete Volador (patada en vuelo) |
@@ -73,7 +73,9 @@ También funciona abriendo `arcade/index.html` directamente (doble clic), aunque
 ## Detalles técnicos
 
 - Lógica a 60 FPS de paso fijo con hitstop, búfer de entrada, cancelaciones, contraataques, chip damage, malabares, empuje en esquina y derribos.
-- Personajes dibujados por código como marionetas esqueléticas (sin sprites ni imágenes externas). Escenario original: atardecer en Málaga con castillo, catedral de una torre, noria, palmeras, focos, público y un robot-boquerón gigante.
+- **Gráficos de los personajes**: sprites recortados de la ilustración de referencia (eliminación de fondo con BiRefNet) y animados con un **rig esquelético**: el cuerpo es una malla deformada por huesos (skinning) y cada brazo se separa en dos piezas rígidas, con el hueco del torso rellenado. Render en WebGL (~1 ms/frame); sin WebGL, o si va lento, pasa a un modo Canvas 2D con piezas rígidas; si no cargan las imágenes, a la marioneta vectorial original. Retratos HD recortados de las caras.
+- Escenario original pixelado con tramado ordenado: atardecer en Málaga con castillo, catedral de una torre, noria, palmeras, focos, público y un robot-boquerón gigante.
+- Pipeline reproducible de sprites en `tools/` (ver `tools/README.md`).
 - Sonido sintetizado con WebAudio (golpes, especiales, música chiptune original). Locutor con la síntesis de voz del navegador si existe (`es-ES`); si no, solo texto en pantalla.
 - La IA usa el mismo mando virtual que un humano (no lee tus entradas): tiene tiempo de reacción, probabilidad de bloqueo, antiaéreos y combos según la dificultad.
 - Fuente: *Press Start 2P* (Google Fonts, licencia OFL). Sin conexión se usa una monoespaciada del sistema.
@@ -86,7 +88,11 @@ arcade/
 ├── js/input.js         # teclado, mando, táctil y búfer de inputs
 ├── js/characters.js    # datos, aspecto, golpes y frases
 ├── js/fighter.js       # estados, golpes, físicas y cajas de impacto
-├── js/render.js        # marioneta, escenario, proyectiles y partículas
+├── js/render.js        # poses, marioneta de respaldo, escenario, proyectiles y partículas
+├── js/sprites.js       # rig esquelético + skinning WebGL de los sprites
+├── js/sprite-data.js   # sprites embebidos (generado por tools/build_sprite_data.py)
+├── assets/sprites/     # PNG: base, brazos y caras de cada personaje
+├── tools/              # pipeline de recorte, capas y empaquetado
 ├── js/ai.js            # IA rival
 ├── js/game.js          # pantallas, rondas, HUD y bucle
 └── tests/game.test.cjs # pruebas end-to-end con Chromium
@@ -105,9 +111,12 @@ node arcade/tests/game.test.cjs          # requiere playwright (local o global) 
 SHOTS=/ruta node arcade/tests/game.test.cjs   # además guarda capturas
 ```
 
-Cubren: carga sin errores, menús y opciones persistentes, golpes que conectan, especial por botón y por input clásico, combos con cancelación, super con cinemática y multi-impacto, bloqueo alto/bajo en versus, pausa, combates completos CPU contra CPU en las tres dificultades, el modo arcade hasta el final, mando simulado y controles táctiles.
+Cubren: sprites HD cargados en WebGL y dibujados (comparación de píxeles), coste de render por frame, apertura por `file://`, carga sin errores, menús y opciones persistentes, golpes que conectan, especial por botón y por input clásico, combos con cancelación, super con cinemática y multi-impacto, bloqueo alto/bajo en versus, pausa, combates completos CPU contra CPU en las tres dificultades, el modo arcade hasta el final, mando simulado y controles táctiles.
 
 ## Limitaciones conocidas
+
+- **Animación**: cada personaje sale de *un solo dibujo* animado por rig. Se ve como la imagen, pero no tiene la riqueza de un juego con decenas de fotogramas dibujados a mano por golpe (KOF, Fatal Fury); SF4 además es 3D. Algunas poses deforman ropa o hombros.
+- **Luis lleva kimono** (el de la imagen, recoloreado a azul marino), no traje: para el traje hace falta una nueva ilustración de Luis en la misma pose y estilo.
 
 - Sin agarres/llaves ni modo online.
 - El mando se ha probado con la Gamepad API simulada, no con un mando físico.

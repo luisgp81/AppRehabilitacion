@@ -81,6 +81,8 @@ class Game {
   }
   render() {
     const ctx = this.ctx;
+    ctx.setTransform(RES, 0, 0, RES, 0, 0);
+    ctx.imageSmoothingEnabled = true;
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     ctx.save();
     if (this.shakeT > 0) ctx.translate((RNG() - 0.5) * this.shakeA, (RNG() - 0.5) * this.shakeA);
@@ -101,14 +103,14 @@ class Game {
     ctx.fillStyle = 'rgba(10,5,25,0.45)'; ctx.fillRect(0, 0, W, H);
     CHARS.forEach((ch, i) => {
       const f = { t: this.frame + i * 20, state: 'idle', x: 0, facing: 1, guarding: false };
-      drawFighterAt(ctx, ch.look, 170 + i * 150, 318, targetPose(f), i === 2 ? -1 : 1, this.frame, { scale: 1.0 });
+      drawFighterAt(ctx, ch.look, 170 + i * 150, 336, targetPose(f), i === 2 ? -1 : 1, this.frame, { scale: 0.78, state: 'idle' });
     });
     Stage.drawCrowd(ctx, this.frame, 0.3);
     const bob = Math.sin(this.frame * 0.05) * 3;
-    comicText(ctx, 'SELECCIÓN', W / 2, 62 + bob, 34, '#f4c20d');
-    comicText(ctx, 'ARCADE', W / 2, 104 + bob, 40, '#e8423a');
-    txt(ctx, 'COMBATE EN MÁLAGA', W / 2, 140, 11, '#ffffff');
-    if (Math.floor(this.frame / 30) % 2 === 0) txt(ctx, 'PULSA ENTER / J / TOCA', W / 2, 186, 10, '#9bf0ff');
+    comicText(ctx, 'SELECCIÓN', W / 2, 46 + bob, 34, '#f4c20d');
+    comicText(ctx, 'ARCADE', W / 2, 88 + bob, 40, '#e8423a');
+    txt(ctx, 'COMBATE EN MÁLAGA', W / 2, 120, 11, '#ffffff');
+    if (Math.floor(this.frame / 30) % 2 === 0) txt(ctx, 'PULSA ENTER / J / TOCA', W / 2, 142, 9, '#9bf0ff');
     txt(ctx, 'Fan game original · sin marcas oficiales', W / 2, 352, 6, '#bbb', 'center', false);
   }
 
@@ -286,10 +288,10 @@ class Game {
       txt(ctx, solo ? (side === 0 ? '1P' : '2P') : (side === 0 ? '1P' : '2P'), x + (side ? 26 : -26), y - 42, 8, col);
       // vista grande
       const ch = CHARS[s.idx];
-      const L = (side === 1 && this.sel[0].idx === s.idx) ? Object.assign({}, ch.look, ch.alt) : ch.look;
+      const L = (side === 1 && this.sel[0].idx === s.idx) ? Object.assign({}, ch.look, ch.alt, { isAlt: true }) : ch.look;
       const px = side === 0 ? 92 : 548;
       const f = { t: this.frame, state: s.done ? 'win' : 'idle', x: 0, facing: 1, guarding: false };
-      drawFighterAt(ctx, L, px, 212, targetPose(f), side === 0 ? 1 : -1, this.frame, { scale: 1.05, expr: s.done ? 'win' : 'normal' });
+      drawFighterAt(ctx, L, px, 212, targetPose(f), side === 0 ? 1 : -1, this.frame, { scale: 0.78, expr: s.done ? 'win' : 'normal', state: s.done ? 'win' : 'idle' });
       txt(ctx, ch.name, px, 228, 10, ch.color);
       txt(ctx, ch.title + ' · ' + ch.style.toUpperCase(), px, 244, 6, '#fff', 'center', false);
       if (s.done) txt(ctx, '¡LISTO!', px, 70, 10, '#5effa0');
@@ -338,8 +340,8 @@ class Game {
     ctx.fillStyle = '#7a1f2b'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W * 0.56 * k, 0); ctx.lineTo(W * 0.44 * k, H); ctx.lineTo(0, H); ctx.fill();
     ctx.fillStyle = '#1b3b7a'; ctx.beginPath(); ctx.moveTo(W, 0); ctx.lineTo(W - W * 0.44 * k, 0); ctx.lineTo(W - W * 0.56 * k, H); ctx.lineTo(W, H); ctx.fill();
     const f = { t: this.frame, state: 'idle', x: 0, facing: 1, guarding: false };
-    drawFighterAt(ctx, this.f1.look, -60 + 220 * k, 330, targetPose(f), 1, this.frame, { scale: 1.7 });
-    drawFighterAt(ctx, this.f2.look, W + 60 - 220 * k, 330, targetPose(f), -1, this.frame, { scale: 1.7 });
+    drawFighterAt(ctx, this.f1.look, -60 + 220 * k, 350, targetPose(f), 1, this.frame, { scale: 1.45 });
+    drawFighterAt(ctx, this.f2.look, W + 60 - 220 * k, 350, targetPose(f), -1, this.frame, { scale: 1.45 });
     const s = 1 + Math.max(0, (30 - this.st) / 10);
     ctx.save(); ctx.translate(W / 2, H / 2 - 20); ctx.scale(s, s); comicText(ctx, 'VS', 0, 0, 48, '#f4c20d'); ctx.restore();
     txt(ctx, this.f1.ch.name, 20, 24, 14, '#fff', 'left'); txt(ctx, this.f2.ch.name, W - 20, 24, 14, '#fff', 'right');
@@ -620,7 +622,7 @@ class Game {
   drawFighter(ctx, f) {
     if (!f.pose) return;
     if (f.state === 'getup' && Math.floor(f.t / 3) % 2) ctx.globalAlpha = 0.6;
-    const useFilter = f.flash > 0 && 'filter' in ctx;
+    const useFilter = f.flash > 0 && 'filter' in ctx && !SpriteRig.has(f.look.head);
     if (useFilter) ctx.filter = 'brightness(1.9)';
     let glow = null;
     if (f.state === 'attack' && f.move && (f.move.kind === 'special' || f.move.kind === 'super')) glow = f.ch.color;
@@ -628,7 +630,9 @@ class Game {
     // extras de golpe
     if (f.state === 'attack' && f.move && f.move.id === 'rush') this.drawRushFx(ctx, f);
     if (f.state === 'attack' && f.move && f.move.id === 'dp' && f.isActive()) this.drawDpFx(ctx, f);
-    drawFighterAt(ctx, f.look, f.x, GROUND - f.y, f.pose, this.visFacing(f), this.frame, { glow, expr });
+    const t0 = performance.now();
+    drawFighterAt(ctx, f.look, f.x, GROUND - f.y, f.pose, this.visFacing(f), this.frame, { glow, expr, state: f.state, flash: f.flash > 0 });
+    if (!TEST) SpriteRig.sample(performance.now() - t0);
     if (useFilter) ctx.filter = 'none';
     ctx.globalAlpha = 1;
     if (PARAMS.has('boxes')) this.drawBoxes(ctx, f);
@@ -727,7 +731,7 @@ class Game {
     for (let k = 0; k < 2; k++) {
       const left = k === 0, x = left ? 16 : W - 16, al = left ? 'left' : 'right';
       const c = this.combos[k];
-      if (c) { comicText(ctx, `${c.hits} GOLPES`, x, 96, 14, '#f4c20d', al); txt(ctx, `${c.dmg} DAÑO`, x, 116, 8, '#fff', al); }
+      if (c) { comicText(ctx, `${c.hits} GOLPES`, x, 150, 14, '#f4c20d', al); txt(ctx, `${c.dmg} DAÑO`, x, 170, 8, '#fff', al); }
       const co = this.callouts[k];
       if (co) txt(ctx, co.text, x, 62, 8, k ? '#9bf0ff' : '#ffb0a8', al);
     }
@@ -810,7 +814,7 @@ class Game {
     const w = this.matchWinner, l = w === this.f1 ? this.f2 : this.f1;
     if (w) {
       const f = { t: this.st, state: 'win', x: 0, facing: 1, guarding: false };
-      drawFighterAt(ctx, w.look, 150, 318, targetPose(f), 1, this.frame, { scale: 1.35, expr: 'win' });
+      drawFighterAt(ctx, w.look, 150, 330, targetPose(f), 1, this.frame, { scale: 1.1, expr: 'win', state: 'win' });
       comicText(ctx, `¡GANA ${w.ch.name}!`, 420, 50, 18, w.ch.color);
       const lines = wrap(ctx, '"' + this.winQuote + '"', 300, 8);
       ctx.fillStyle = '#fff'; ctx.fillRect(268, 76, 316, lines.length * 14 + 16);
@@ -838,7 +842,7 @@ class Game {
       sebas: 'Sebas gana y abre un videoclub en el Soho malagueño. Primera norma: rebobinar antes de devolver. Segunda: subir el volumen.',
     };
     const f = { t: this.st, state: 'win', x: 0, facing: 1, guarding: false };
-    drawFighterAt(ctx, ch.look, W / 2, 318, targetPose(f), 1, this.frame, { scale: 1.2, expr: 'win' });
+    drawFighterAt(ctx, ch.look, W / 2, 330, targetPose(f), 1, this.frame, { scale: 1.0, expr: 'win', state: 'win' });
     comicText(ctx, '¡CAMPEÓN DE MÁLAGA!', W / 2, 40, 18, '#f4c20d');
     wrap(ctx, endings[ch.id], 520, 8).forEach((t, j) => txt(ctx, t, W / 2, 74 + j * 14, 8, '#fff'));
     txt(ctx, `Continuaciones usadas: ${this.ladder.continues}`, W / 2, 130, 7, '#9bf0ff');
@@ -854,6 +858,11 @@ function drawPortrait(ctx, L, cx, cy, size, facing, t, expr = 'normal') {
   ctx.beginPath(); ctx.rect(cx - size / 2, cy - size / 2, size, size); ctx.clip();
   const g = ctx.createLinearGradient(0, cy - size / 2, 0, cy + size / 2); g.addColorStop(0, '#3a2a6a'); g.addColorStop(1, '#120a24');
   ctx.fillStyle = g; ctx.fillRect(cx - size / 2, cy - size / 2, size, size);
+  if (SpriteRig.has(L.head)) {
+    SpriteRig.face(ctx, L.head, cx, cy, size, facing);
+    if (expr === 'ko' || expr === 'hurt') { ctx.fillStyle = expr === 'ko' ? 'rgba(0,0,0,0.5)' : 'rgba(255,40,40,0.25)'; ctx.fillRect(cx - size / 2, cy - size / 2, size, size); }
+    ctx.restore(); return;
+  }
   const k = size / 34 / L.scale;
   const pose = POSES.guard;
   const headY = 99 + L.bulk * 1.3;
@@ -873,6 +882,8 @@ function drawPortrait(ctx, L, cx, cy, size, facing, t, expr = 'normal') {
   canvas.addEventListener('pointerdown', () => { Audio8.unlock(); if (game.screen === 'title') game.tapped = true; });
   window.addEventListener('error', e => game.errors.push(String(e.message)));
 
+  window.SA.ready = false;
+  SpriteRig.load(ok => { window.SA.ready = true; window.SA.sprites = ok; });
   const step = () => { try { game.tick(); } catch (e) { game.errors.push(e.stack || String(e)); throw e; } };
   if (TEST) {
     // Modo prueba: el test avanza los frames de forma determinista

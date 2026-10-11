@@ -32,7 +32,7 @@ const GROUND_FREE = ['idle', 'walk', 'crouch'];
 class Fighter {
   constructor(game, idx, ch, alt) {
     this.game = game; this.idx = idx; this.ch = ch;
-    this.look = alt ? Object.assign({}, ch.look, ch.alt) : ch.look;
+    this.look = alt ? Object.assign({}, ch.look, ch.alt, { isAlt: true }) : ch.look;
     this.moves = buildMoves(ch);
     this.ctrl = game.ctrls[idx];
     this.maxHp = ch.stats.hp;
