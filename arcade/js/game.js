@@ -340,8 +340,8 @@ class Game {
     ctx.fillStyle = '#7a1f2b'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W * 0.56 * k, 0); ctx.lineTo(W * 0.44 * k, H); ctx.lineTo(0, H); ctx.fill();
     ctx.fillStyle = '#1b3b7a'; ctx.beginPath(); ctx.moveTo(W, 0); ctx.lineTo(W - W * 0.44 * k, 0); ctx.lineTo(W - W * 0.56 * k, H); ctx.lineTo(W, H); ctx.fill();
     const f = { t: this.frame, state: 'idle', x: 0, facing: 1, guarding: false };
-    drawFighterAt(ctx, this.f1.look, -60 + 220 * k, 350, targetPose(f), 1, this.frame, { scale: 1.45 });
-    drawFighterAt(ctx, this.f2.look, W + 60 - 220 * k, 350, targetPose(f), -1, this.frame, { scale: 1.45 });
+    drawFighterAt(ctx, this.f1.look, -60 + 220 * k, 350, targetPose(f), 1, this.frame, { scale: 1.45, anim: 'intro' });
+    drawFighterAt(ctx, this.f2.look, W + 60 - 220 * k, 350, targetPose(f), -1, this.frame, { scale: 1.45, anim: 'intro' });
     const s = 1 + Math.max(0, (30 - this.st) / 10);
     ctx.save(); ctx.translate(W / 2, H / 2 - 20); ctx.scale(s, s); comicText(ctx, 'VS', 0, 0, 48, '#f4c20d'); ctx.restore();
     txt(ctx, this.f1.ch.name, 20, 24, 14, '#fff', 'left'); txt(ctx, this.f2.ch.name, W - 20, 24, 14, '#fff', 'right');
@@ -603,7 +603,7 @@ class Game {
     // reflejos y sombras
     for (const f of [f1, f2]) {
       ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 2, 26 * f.s * Math.max(0.5, 1 - f.y / 200), 5, 0, 0, 7); ctx.fill();
-      if (f.pose) { ctx.save(); ctx.globalAlpha = 0.14; ctx.translate(0, GROUND * 2 + 4); ctx.scale(1, -1); drawFighterAt(ctx, f.look, f.x, GROUND + f.y, f.pose, this.visFacing(f), this.frame, {}); ctx.restore(); }
+      if (f.pose) { ctx.save(); ctx.globalAlpha = 0.14; ctx.translate(0, GROUND * 2 + 4); ctx.scale(1, -1); drawFighterAt(ctx, f.look, f.x, GROUND + f.y, f.pose, this.visFacing(f), this.frame, { fighter: f }); ctx.restore(); }
     }
     if (fr) { ctx.fillStyle = 'rgba(5,0,20,0.72)'; ctx.fillRect(0, 0, W, H); }
     const order = (f2.state === 'attack' && f1.state !== 'attack') ? [f1, f2] : [f2, f1];
@@ -631,7 +631,7 @@ class Game {
     if (f.state === 'attack' && f.move && f.move.id === 'rush') this.drawRushFx(ctx, f);
     if (f.state === 'attack' && f.move && f.move.id === 'dp' && f.isActive()) this.drawDpFx(ctx, f);
     const t0 = performance.now();
-    drawFighterAt(ctx, f.look, f.x, GROUND - f.y, f.pose, this.visFacing(f), this.frame, { glow, expr, state: f.state, flash: f.flash > 0 });
+    drawFighterAt(ctx, f.look, f.x, GROUND - f.y, f.pose, this.visFacing(f), this.frame, { glow, expr, state: f.state, flash: f.flash > 0, fighter: f });
     if (!TEST) SpriteRig.sample(performance.now() - t0);
     if (useFilter) ctx.filter = 'none';
     ctx.globalAlpha = 1;
@@ -883,7 +883,7 @@ function drawPortrait(ctx, L, cx, cy, size, facing, t, expr = 'normal') {
   window.addEventListener('error', e => game.errors.push(String(e.message)));
 
   window.SA.ready = false;
-  SpriteRig.load(ok => { window.SA.ready = true; window.SA.sprites = ok; });
+  SpriteRig.load(ok => { window.SA.sprites = ok; FrameSprites.load(() => { window.SA.ready = true; window.SA.frames = Object.keys(FrameSprites.sets); }); });
   const step = () => { try { game.tick(); } catch (e) { game.errors.push(e.stack || String(e)); throw e; } };
   if (TEST) {
     // Modo prueba: el test avanza los frames de forma determinista

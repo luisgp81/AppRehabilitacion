@@ -15,3 +15,20 @@ Requisitos: `pip install "rembg[cpu]" scipy pillow` (BiRefNet se descarga solo, 
    (genera `js/sprite-data.js`, necesario para que funcione abriendo el HTML con `file://`).
 
 Los scripts trabajan sobre la carpeta actual; ajusta rutas si cambias de imagen.
+
+## Generar cientos de fotogramas con IA (Gemini «Nano Banana»)
+
+Requisitos: variable de entorno `GEMINI_API_KEY` (Google AI Studio) y `pip install pillow numpy scipy`.
+
+```bash
+python3 tools/gen_sprites.py --dry-run                     # lista de peticiones y coste estimado
+python3 tools/gen_sprites.py --char luis --only sheet      # 1) ficha del personaje (revisarla y repetir con --force si no convence)
+python3 tools/gen_sprites.py --char luis                   # 2) 26 animaciones en tiras horizontales (87 fotogramas)
+python3 tools/process_frames.py --char luis                # 3) croma, separar, escalar, alinear → assets/frames/luis/atlas.png
+```
+
+- Cada animación se pide como **una sola tira** con todos sus fotogramas: el modelo mantiene mejor la coherencia dentro de la animación
+  y cuesta una llamada por animación. Referencias: el recorte original del personaje (cara) + la ficha aprobada (estilo y ropa).
+- El juego usa los fotogramas en cuanto existe el atlas (`js/frame-index.js`); si falta una animación, la cubre el rig.
+- Repetir una animación concreta: `--only lp,sk --force`. Modelo más barato: `--model gemini-3.1-flash-image-preview`.
+- Prueba del pipeline sin gastar API: `node tests/pipeline.test.cjs` (servidor que imita la API).

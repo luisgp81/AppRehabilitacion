@@ -261,6 +261,9 @@ function drawHead(ctx, L, x, y, r, ang, expr, t) {
 
 // Dibuja un luchador en (x, groundY) con su pose. opts: {scale, facing, pose, alpha, expr, glow, silhouette}
 function drawFighterAt(ctx, L, x, gy, pose, facing, t, opts = {}) {
+  if (!opts.puppet && typeof FrameSprites !== 'undefined' && FrameSprites.has(L.head)) {
+    if (FrameSprites.draw(ctx, L.head, x, gy, facing, { fighter: opts.fighter, anim: opts.anim || (opts.state === 'win' ? 'win' : 'idle'), t, scale: opts.scale, flash: opts.flash, alt: L.isAlt })) return;
+  }
   if (!opts.puppet && typeof SpriteRig !== 'undefined' && SpriteRig.has(L.head)) {
     const rest = opts.state === 'win' && RIGS[L.head].winRest;
     if (SpriteRig.draw(ctx, L.head, x, gy, pose, facing, { scale: opts.scale, glow: opts.glow, flash: opts.flash, alt: L.isAlt, rest })) return;
