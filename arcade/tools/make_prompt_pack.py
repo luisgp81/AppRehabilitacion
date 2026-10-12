@@ -5,12 +5,12 @@ from gen_sprites import CHARS, ANIMS, SPECIALS, STYLE
 
 PHASE = {
     1: ['sheet', 'idle', 'walk_f', 'lp', 'sk', 'crouch', 'jump', 'hit', 'block'],
-    2: ['proj', 'dp', 'rush', 'super', 'cp', 'ck', 'down', 'ko', 'win'],
+    2: ['proj', 'dp', 'rush', 'super', 'super2', 'ultra', 'combo', 'cp', 'ck', 'down', 'ko', 'win'],
     3: ['walk_b', 'dash', 'jp', 'jk', 'hit_crouch', 'block_crouch', 'launched', 'getup', 'intro'],
 }
 NAMES = {'sheet': 'Ficha del personaje', 'idle': 'Guardia (respirando)', 'walk_f': 'Andar adelante', 'walk_b': 'Andar atrás', 'crouch': 'Agacharse',
          'jump': 'Salto', 'dash': 'Dash', 'lp': 'Puñetazo', 'sk': 'Patada', 'cp': 'Puñetazo agachado', 'ck': 'Barrido', 'jp': 'Puñetazo aéreo',
-         'jk': 'Patada aérea', 'proj': 'Especial: proyectil', 'dp': 'Especial: antiaéreo', 'rush': 'Especial: embestida', 'super': 'Super',
+         'jk': 'Patada aérea', 'proj': 'Especial: proyectil', 'dp': 'Especial: antiaéreo', 'rush': 'Especial: embestida', 'super': 'Super 1', 'super2': 'Super 2', 'ultra': 'GOLPE FINAL', 'combo': 'Remate de combo',
          'hit': 'Recibe golpe', 'hit_crouch': 'Recibe golpe agachado', 'block': 'Bloqueo', 'block_crouch': 'Bloqueo agachado',
          'launched': 'Sale volando', 'down': 'Derribado', 'getup': 'Levantarse', 'ko': 'K.O.', 'win': 'Victoria', 'intro': 'Presentación'}
 CHAT = (" Output one single image. Image size: wide landscape. Do not add any text, labels, numbers or watermark.")

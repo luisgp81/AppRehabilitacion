@@ -19,6 +19,9 @@ const CHARS = [
       dp: { name: 'SUBIDA DEL EURÍBOR', fx: 'chart', text: '+0,25%' },
       rush: { name: 'REMIX SÓNICO', fx: 'notes', style: 'spin', text: '¡DROP!' },
       super: { name: 'PROMPT DEFINITIVO', kind: 'beam', fx: 'ai', text: 'IA.EXE' },
+      super2: { name: 'OPA HOSTIL', fx: 'euro', text: '¡ADQUIRIDO!' },
+      ultra: { name: 'RESCATE BANCARIO TOTAL', fx: 'ai', theme: 'bank' },
+      remate: { name: 'CIERRE DE OPERACIÓN', fx: 'chart', text: '¡FIRMADO!' },
     },
     quotes: {
       intro: ['Tengo una oferta que no podrás rechazar.', 'Vengo a revisar tus condiciones.', 'He pedido a la IA un plan. Spoiler: pierdes.'],
@@ -43,6 +46,9 @@ const CHARS = [
       dp: { name: 'CLAQUETA FINAL', fx: 'clap', text: '¡CORTEN!' },
       rush: { name: 'SUBMARINO AMARILLO', fx: 'sub', style: 'charge', text: '¡GLUB!' },
       super: { name: '¡PERMANENCIA!', kind: 'wave', fx: 'wave', text: '¡OLÉ!' },
+      super2: { name: 'PLANO SECUENCIA', fx: 'clap', text: '¡ACCIÓN!' },
+      ultra: { name: 'FINAL EN EL CARRANZA', fx: 'wave', theme: 'stadium' },
+      remate: { name: 'PUÑETAZO DE VIÑETA', fx: 'comic', text: '¡KRAK!' },
     },
     quotes: {
       intro: ['Esto es más fácil que ver al Cádiz en el descuento.', 'Mi calva refleja tu derrota.', 'He leído este final. Y no te gusta.'],
@@ -67,6 +73,9 @@ const CHARS = [
       dp: { name: 'CUERNOS HEAVY', fx: 'horns', text: '¡\\m/!' },
       rush: { name: 'PATINETE VOLADOR', fx: 'board', style: 'fly', text: '¡88 MPH!' },
       super: { name: 'SOLO DE GUITARRA INFINITO', kind: 'bolt', fx: 'metal', text: '¡RIFF!' },
+      super2: { name: 'AVANCE RÁPIDO x16', fx: 'vhs', text: '¡FF>>!' },
+      ultra: { name: 'VIDEOCLUB APOCALIPSIS', fx: 'metal', theme: 'metal' },
+      remate: { name: 'PATADA DE CULTO', fx: 'horns', text: '¡\\m/!' },
     },
     quotes: {
       intro: ['Rebobina, que esto va para largo.', 'Tengo más metal que tu cubertería.', 'Esta pelea ya la vi en VHS. Ganaba yo.'],

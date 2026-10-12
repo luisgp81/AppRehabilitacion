@@ -14,7 +14,13 @@ function buildMoves(ch) {
     proj: { kind: 'special', anim: 'proj', startup: 13, active: 2, recovery: 26, spawn: 13, dmg: 85, chip: 14, hitstun: 21, blockstun: 17, guard: 'mid', push: 5, speed: st.projSpeed },
     dp: { kind: 'special', anim: 'dp', startup: 4, active: 12, recovery: 10, dmg: 115, chip: 12, hitstun: 30, blockstun: 18, guard: 'mid', hb: { x: 30, y: 100, w: 46, h: 76 }, launch: { vx: 2.5, vy: 9 }, knockdown: true, invuln: [0, 8], rise: { frame: 3, vy: 10.5, vx: 1.6 }, cancel: ['super'] },
     rush: { kind: 'special', anim: 'rush', startup: 8, active: 20, recovery: 18, dmg: 58, chip: 9, hits: 2, hitEvery: 9, hitstun: 20, blockstun: 14, guard: 'mid', hb: { x: 36, y: 64, w: 60, h: 74 }, push: 2.5, knockdown: true, dash: st.rushSpeed },
-    super: { kind: 'super', anim: 'super', startup: 8, active: 44, recovery: 26, spawn: 8, sup, dmg: 40, chip: 6, hitstun: 24, blockstun: 10, guard: 'mid', invuln: [0, 20], knockdown: true },
+    super: { kind: 'super', anim: 'super', startup: 8, active: 44, recovery: 26, spawn: 8, sup, dmg: 40, chip: 6, hitstun: 24, blockstun: 10, guard: 'mid', invuln: [0, 20], knockdown: true, cost: 100 },
+    // Remate del combo arcade (puño, puño, patada): lanza por los aires y se cancela en super
+    remate: { kind: 'normal', anim: 'sk', startup: 6, active: 4, recovery: 18, dmg: 88, hitstun: 26, blockstun: 16, guard: 'mid', hb: { x: 64, y: 74, w: 66, h: 34 }, push: 3, launch: { vx: 3.2, vy: 8.5 }, knockdown: true, cancel: ['super'] },
+    // Segundo super: embestida de 7 impactos
+    super2: { kind: 'super', anim: 'rush', startup: 6, active: 34, recovery: 24, dmg: 34, chip: 8, hits: 7, hitEvery: 4, hitstun: 22, blockstun: 8, guard: 'mid', hb: { x: 42, y: 72, w: 72, h: 96 }, push: 1.2, dash: 9, invuln: [0, 14], knockdown: true, launch: { vx: 4, vy: 9 }, cost: 100 },
+    // Golpe Final: 2 barras; si conecta, cinemática de 9 impactos
+    ultra: { kind: 'ultra', anim: 'super', startup: 10, active: 8, recovery: 40, dmg: 0, chip: 30, hitstun: 30, blockstun: 22, guard: 'mid', hb: { x: 54, y: 86, w: 88, h: 130 }, push: 2, invuln: [0, 18], cost: 200, dash: 5 },
   };
   const s = ch.look.scale;
   for (const k in M) {
@@ -23,6 +29,8 @@ function buildMoves(ch) {
     if (ch.moves[k]) { m.name = ch.moves[k].name; m.fx = ch.moves[k].fx; m.text = ch.moves[k].text; m.style = ch.moves[k].style; }
   }
   if (ch.moves.rush.style === 'fly') { M.rush.hb.y += 10; }
+  M.super2.style = ch.moves.rush.style === 'fly' ? 'charge' : ch.moves.rush.style;
+  M.lp.cancel = ['lp', 'remate', 'sk', 'sp', 'super'];
   if (ch.moves.rush.style === 'spin') { M.rush.hits = 3; M.rush.hitEvery = 6; M.rush.dmg = 42; }
   return M;
 }
@@ -89,16 +97,16 @@ class Fighter {
     const m = this.moves[id];
     if (!m) return false;
     if (id === 'proj' && this.game.hasProjectile(this)) return false;
-    if (m.kind === 'normal' || m.kind === 'special' || m.kind === 'super') this.vx = 0;
-    if (id === 'super') {
-      if (this.meter < 100) return false;
-      this.meter = 0; this.stats.supers++;
+    if (m.kind !== 'air') this.vx = 0;
+    if (m.cost) {
+      if (this.meter < m.cost) return false;
+      this.meter -= m.cost; this.stats.supers++;
       this.game.superFreeze(this, m);
     } else if (m.kind === 'special') {
       this.stats.specials++;
       Audio8.play('special');
       this.game.callout(this, m.name);
-    } else Audio8.play('whoosh');
+    } else { Audio8.play('whoosh'); if (id === 'remate') this.game.callout(this, m.name); }
     this.chainCount = (this.move && this.move.id === id) ? this.chainCount + 1 : 0;
     this.state = 'attack'; this.move = m; this.mf = 0; this.t = 0; this.moveSerial = (this.moveSerial || 0) + 1;
     this.hasHit = false; this.hitsDone = 0; this.lastHitF = -99;
@@ -109,8 +117,13 @@ class Fighter {
   // Lectura de golpes desde neutral o desde cancelación
   pickMove(allowed) {
     const c = this.ctrl, f = this.facing;
-    const ok = id => !allowed || allowed.includes(id) || (allowed.includes('sp') && ['proj', 'dp', 'rush'].includes(id));
+    const ok = id => !allowed || allowed.includes(id) || (allowed.includes('sp') && ['proj', 'dp', 'rush'].includes(id)) || (allowed.includes('super') && ['super2', 'ultra'].includes(id));
     const sd = c.buffered('s', 5) ? (c.sDir || 5) : 5;
+    const bP = c.buffered('p', 5), bK = c.buffered('k', 5), bS = c.buffered('s', 5);
+    // Golpe Final: P+K+SP a la vez (o 214214+P) con 2 barras
+    if (this.meter >= 200 && ok('ultra') && ((bP && bK && bS) || (bP && c.motion([2, 1, 4, 2, 1, 4], 34)))) return 'ultra';
+    // Super 2: K+SP a la vez (o 236236+K)
+    if (this.meter >= 100 && ok('super2') && ((bK && bS) || (bK && c.motion([2, 3, 6, 2, 3, 6], 34)))) return 'super2';
     if (this.meter >= 100 && ok('super')) {
       if ((c.buffered('p', 5) && c.motion([2, 3, 6, 2, 3, 6], 34)) || (c.buffered('s', 5) && (c.held.down || sd <= 3))) return 'super';
     }
@@ -127,6 +140,7 @@ class Fighter {
     }
     if (c.buffered('k', 5)) {
       if (ok('rush') && c.motion([2, 1, 4], 16)) return 'rush';
+      if (allowed && allowed.includes('remate') && this.move && this.move.id === 'lp' && this.chainCount >= 1 && !c.held.down) return 'remate';
       const id = c.held.down ? 'ck' : 'sk';
       if (ok(id)) return id;
     }
@@ -211,7 +225,7 @@ class Fighter {
     if (m.rise && this.mf === m.rise.frame) { this.vy = m.rise.vy; this.vx = m.rise.vx * f; this.y = 0.1; }
     if (m.dash) {
       if (this.mf >= m.startup && this.mf < m.startup + m.active) {
-        this.vx = m.dash * f;
+        this.vx = (m.cost && this.hasHit ? 1.4 : m.dash) * f;
         if (m.style === 'fly' && this.mf === m.startup) { this.vy = 3.2; this.y = 0.1; }
       } else this.vx *= 0.75;
     }

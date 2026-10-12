@@ -34,7 +34,10 @@ class AI {
     if (f.state === 'attack' && f.hasHit && f.move && f.move.cancel && this.once('c' + f.moveSerial)) {
       if (this.r() < c.combo) {
         const m = f.move.id;
-        if (f.meter >= 100 && this.r() < c.super) this.doAct('press', { btn: 's', down: true, dur: 2 });
+        if (f.meter >= 200 && this.r() < c.super) this.doAct('ultra', { dur: 2 });
+        else if (f.meter >= 100 && this.r() < c.super) this.r() < 0.5 ? this.doAct('press', { btn: 's', down: true, dur: 2 }) : this.doAct('super2', { dur: 2 });
+        else if (m === 'lp' && f.chainCount === 0 && this.r() < 0.5) this.doAct('press', { btn: 'p', dur: 2 });
+        else if (m === 'lp' && f.chainCount >= 1 && this.r() < 0.7) this.doAct('press', { btn: 'k', dur: 2 });
         else if (m === 'lp' && this.r() < 0.4) this.doAct('press', { btn: 'k', dur: 2 });
         else this.doAct('press', { btn: 's', dir: this.r() < 0.6 ? 1 : 0, dur: 2 });
       }
@@ -59,7 +62,8 @@ class AI {
       else {
         this.wait = c.think[0] + Math.floor(this.r() * (c.think[1] - c.think[0]));
         const ag = c.aggr, canProj = !game.hasProjectile(f);
-        if (f.meter >= 100 && d < 230 && this.r() < c.super * 0.5) this.doAct('press', { btn: 's', down: true, dur: 2 });
+        if (f.meter >= 200 && d < 120 && this.r() < c.super * 0.6) this.doAct('ultra', { dur: 2 });
+        else if (f.meter >= 100 && d < 230 && this.r() < c.super * 0.5) this.r() < 0.5 ? this.doAct('press', { btn: 's', down: true, dur: 2 }) : this.doAct('super2', { dur: 2 });
         else if (d < 95) this.pick([
           [3 * ag, () => this.doAct('press', { btn: 'p', dur: 1 })],
           [1.5 * ag, () => this.doAct('press', { btn: 'p', down: true, dur: 1 })],
@@ -94,6 +98,8 @@ class AI {
     if (a) {
       const fwd = f.facing > 0 ? 'right' : 'left', back = f.facing > 0 ? 'left' : 'right';
       if (a.kind === 'backdash') { if (a.t === 0 || a.t === 3) v[back] = true; }
+      else if (a.kind === 'ultra') { if (a.t === 0) { v.p = v.k = v.s = true; } }
+      else if (a.kind === 'super2') { if (a.t === 0) { v.k = v.s = true; } }
       else {
         if (a.dir > 0) v[fwd] = true; else if (a.dir < 0) v[back] = true;
         if (a.down) v.down = true;

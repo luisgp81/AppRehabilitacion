@@ -65,6 +65,9 @@ ANIMS = {
     'dp':          (4, "rising uppercut special move: 1) crouch, 2) jumping upward with fist raised, 3) peak with arm straight up, 4) falling"),
     'rush':        (4, "charging rush special move: 1) lean forward, 2) lunging attack fully committed, 3) attack extended, 4) recover"),
     'super':       (5, "super move: 1) power-up pose with aura-free tension, 2) dramatic wind-up, 3) massive two-handed forward strike, 4) hold, 5) recover"),
+    'combo':       (3, "combo finisher strike: 1) twisting wind-up, 2) devastating launching blow fully extended upward-forward, 3) follow-through"),
+    'super2':      (5, "second super move, multi-hit rush: 1) explosive start, 2) first flurry strike, 3) second flurry strike, 4) third flurry strike, 5) final pose"),
+    'ultra':       (6, "ULTIMATE finishing move, the most spectacular pose of the character: 1) dramatic charge with clenched fists, 2) leaping in, 3) barrage strike, 4) spinning strike, 5) massive final blow at full stretch, 6) victorious end pose"),
     'hit':         (2, "getting hit while standing: 1) head snapped back in pain, 2) recoiling backwards"),
     'hit_crouch':  (2, "getting hit while crouching: 1) flinch, 2) recoil"),
     'block':       (2, "standing block: 1) arms crossed in front of face, 2) bracing"),
@@ -77,9 +80,9 @@ ANIMS = {
     'intro':       (4, "pre-fight intro taunt: 1-4 confident gesture, signature attitude"),
 }
 SPECIALS = {
-    'luis': {'proj': "throwing a glowing euro coin (do NOT draw the coin, only the pose)", 'dp': "rising uppercut", 'rush': "spinning hook kick, DJ attitude", 'super': "pointing both hands forward like casting a data beam (do not draw the beam)"},
-    'jc': {'proj': "throwing a comic-book panel (only the pose)", 'dp': "rising uppercut swinging a film clapperboard", 'rush': "shoulder charge like a battering ram", 'super': "huge two-arm wave gesture, football chant attitude"},
-    'sebas': {'proj': "throwing a VHS cassette (only the pose)", 'dp': "rising punch making heavy-metal devil horns with the hand", 'rush': "flying side kick riding a hoverboard (draw the hoverboard)", 'super': "playing an air-guitar power chord"},
+    'luis': {'combo': "rising elbow strike like closing a deal", 'super2': "rapid punch barrage, hostile takeover attitude", 'ultra': "banker hero pose, tie flying, final punch surrounded by imaginary banknotes (do not draw them)", 'proj': "throwing a glowing euro coin (do NOT draw the coin, only the pose)", 'dp': "rising uppercut", 'rush': "spinning hook kick, DJ attitude", 'super': "pointing both hands forward like casting a data beam (do not draw the beam)"},
+    'jc': {'combo': "huge hammer-fist like a comic book panel", 'super2': "rapid brawler combo like a long movie take", 'ultra': "stadium celebration finisher, scarf raised, final giant punch", 'proj': "throwing a comic-book panel (only the pose)", 'dp': "rising uppercut swinging a film clapperboard", 'rush': "shoulder charge like a battering ram", 'super': "huge two-arm wave gesture, football chant attitude"},
+    'sebas': {'combo': "spinning cult-movie kick", 'super2': "super-fast flurry like a fast-forwarded tape", 'ultra': "heavy-metal rock-star finisher, final jumping power strike with devil horns", 'proj': "throwing a VHS cassette (only the pose)", 'dp': "rising punch making heavy-metal devil horns with the hand", 'rush': "flying side kick riding a hoverboard (draw the hoverboard)", 'super': "playing an air-guitar power chord"},
 }
 
 

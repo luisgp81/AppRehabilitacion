@@ -54,7 +54,7 @@ im.convert('RGB').save(${JSON.stringify(out)})`]);
     await step('gen_sprites.py: peticiones bien formadas a la API y tiras guardadas', async () => {
       await run([path.join(ROOT, 'tools/gen_sprites.py'), '--char', 'luis'], env);
       const raws = fs.readdirSync(path.join(TMP, 'raw/luis'));
-      assert(raws.length === 27, 'tiras guardadas: ' + raws.length);
+      assert(raws.length === 30, 'tiras guardadas: ' + raws.length);
       const r0 = requests[0], r1 = requests.find(r => r.text.includes('Exactly 6'));
       assert(r0.url.includes('gemini-3-pro-image-preview:generateContent') && r0.key === 'clave-de-prueba', 'endpoint o clave');
       assert(r0.cfg.responseModalities.includes('IMAGE') && r0.cfg.imageConfig.aspectRatio === '3:4', 'config de la ficha');
@@ -65,7 +65,7 @@ im.convert('RGB').save(${JSON.stringify(out)})`]);
       await run([path.join(ROOT, 'tools/process_frames.py'), '--char', 'luis'], env);
       const meta = JSON.parse(fs.readFileSync(path.join(TMP, 'frames/luis/atlas.json')));
       const counts = Object.fromEntries(Object.entries(meta.anims).map(([k, v]) => [k, v.frames.length]));
-      assert(Object.keys(counts).length === 26, 'animaciones: ' + Object.keys(counts).length);
+      assert(Object.keys(counts).length === 29, 'animaciones: ' + Object.keys(counts).length);
       assert(counts.idle === 6 && counts.lp === 3 && counts.super === 5 && counts.down === 2, 'fotogramas por animación ' + JSON.stringify(counts));
       results.push([`   ↳ ${Object.values(counts).reduce((a, b) => a + b, 0)} fotogramas en ${Object.keys(counts).length} animaciones`, true]);
     });

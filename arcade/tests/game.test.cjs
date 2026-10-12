@@ -228,6 +228,66 @@ async function main() {
     await p.close();
   });
 
+  await test('Combo arcade: puño, puño, patada → remate que lanza (3+ golpes)', async open => {
+    const p = await open();
+    await toFight(p, 3, [0, 1]);
+    await p.hold(['KeyD'], 34);
+    const seen = new Set();
+    const watch = async n => { for (let i = 0; i < n; i++) { await p.step(1); const m = await p.g(() => SA.game.f1.move && SA.game.f1.move.id); if (m) seen.add(m); } };
+    await p.keyboard.down('KeyJ'); await watch(1); await p.keyboard.up('KeyJ'); await watch(6);
+    await p.keyboard.down('KeyJ'); await watch(1); await p.keyboard.up('KeyJ'); await watch(6);
+    await p.keyboard.down('KeyK'); await watch(1); await p.keyboard.up('KeyK'); await watch(20);
+    const r = await p.g(() => ({ max: SA.game.f1.stats.maxCombo, st: SA.game.f2.state }));
+    assert(seen.has('remate'), 'no sale el remate: ' + [...seen]);
+    assert(r.max >= 3, 'combo corto: ' + r.max);
+    await p.close();
+  });
+
+  await test('Super 2 (K+SP): embestida multigolpe que gasta 1 barra', async open => {
+    const p = await open();
+    await toFight(p, 3, [2, 0]);
+    await p.hold(['KeyD'], 20);
+    await p.keyboard.down('KeyK'); await p.keyboard.down('KeyL'); await p.step(2); await p.keyboard.up('KeyK'); await p.keyboard.up('KeyL');
+    const st = await p.g(() => ({ m: SA.game.f1.move && SA.game.f1.move.id, supers: SA.game.f1.stats.supers }));
+    assert(st.m === 'super2' && st.supers === 1, 'super 2 no arranca ' + JSON.stringify(st));
+    await p.step(110);
+    const h = await p.g(() => SA.game.f1.stats.hits);
+    assert(h >= 4, 'pocos impactos del super 2: ' + h);
+    await p.close();
+  });
+
+  await test('Golpe Final (P+K+SP): cinemática de 9 impactos y KO especial', async open => {
+    const p = await open();
+    await toFight(p, 3, [1, 2]);
+    await p.hold(['KeyD'], 30);
+    for (const k of ['KeyJ', 'KeyK', 'KeyL']) await p.keyboard.down(k);
+    await p.step(2); for (const k of ['KeyJ', 'KeyK', 'KeyL']) await p.keyboard.up(k);
+    const a = await p.g(() => ({ m: SA.game.f1.move && SA.game.f1.move.id, supers: SA.game.f1.stats.supers }));
+    assert(a.m === 'ultra' && a.supers === 1, 'golpe final no arranca ' + JSON.stringify(a));
+    await p.step(70);
+    const u = await p.g(() => !!SA.game.ultra);
+    assert(u, 'no entra en la cinemática');
+    await p.shot('t13-golpe-final');
+    await p.step(200);
+    const r = await p.g(() => ({ ultra: !!SA.game.ultra, max: SA.game.f1.stats.maxCombo, st: SA.game.f2.state }));
+    assert(!r.ultra && r.max >= 9, 'cinemática incompleta ' + JSON.stringify(r));
+    await p.close();
+    // KO con golpe final en versus
+    const q = await open();
+    await toFight(q, 1, []);
+    await q.tap('KeyJ'); await q.tap('Numpad1'); await q.step(40); await waitFight(q);
+    await q.g(() => { const g = SA.game; g.f1.meter = 200; g.f2.hp = 150; g.f2.x = g.f1.x + 90; });
+    for (const k of ['KeyJ', 'KeyK', 'KeyL']) await q.keyboard.down(k);
+    await q.step(2); for (const k of ['KeyJ', 'KeyK', 'KeyL']) await q.keyboard.up(k);
+    const used = await q.g(() => SA.game.f1.meter);
+    assert(used === 0, 'el golpe final debe gastar las 2 barras: ' + used);
+    await q.step(240);
+    const k = await q.g(() => ({ ph: SA.game.phase, ko: SA.game.ultraKO, w: SA.game.roundWinner && SA.game.roundWinner.idx }));
+    assert(k.ko && k.w === 0, 'KO por golpe final no registrado ' + JSON.stringify(k));
+    await q.shot('t14-ko-golpe-final');
+    await q.close();
+  });
+
   await test('Versus 2P: bloqueo alto, barrido rompe guardia de pie, guardia agachada lo para', async open => {
     const p = await open();
     await toFight(p, 1, []); // versus: cada jugador confirma con su botón

@@ -52,7 +52,7 @@ function targetPose(f) {
   const t = f.t, st = f.state, m = f.move;
   if (st === 'attack' && m) {
     let w = POSES[m.anim + 'W'], h = POSES[m.anim + 'H'];
-    if (m.id === 'rush') { w = POSES.lpW; h = POSES[m.style + 'H']; }
+    if (m.anim === 'rush') { w = POSES.lpW; h = POSES[(m.style || 'charge') + 'H']; }
     if (m.id === 'proj') { w = POSES.projW; h = POSES.projH; }
     const mf = f.mf;
     if (mf < m.startup) return lerpPose(POSES.guard, w || POSES.guard, Math.min(1, (mf + 1) / Math.max(1, m.startup - 1)));

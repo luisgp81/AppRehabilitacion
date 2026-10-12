@@ -23,7 +23,7 @@ JS_OUT = pathlib.Path(os.environ.get('FRAMES_JS', ROOT / 'js' / 'frame-index.js'
 HREL = {'crouch': 0.72, 'cp': 0.72, 'ck': 0.62, 'hit_crouch': 0.72, 'block_crouch': 0.72, 'jump': 0.85, 'jp': 0.8, 'jk': 0.8,
         'launched': 0.8, 'down': 0.45, 'ko': 0.45, 'getup': 0.75, 'dash': 0.9, 'sk': 1.0, 'dp': 1.1}
 # fotograma "activo" (el que golpea) de cada ataque
-ACTIVE = {'lp': [1], 'sk': [1, 2], 'cp': [1], 'ck': [1, 2], 'jp': [1], 'jk': [1], 'proj': [2], 'dp': [1, 2], 'rush': [1, 2], 'super': [2, 3]}
+ACTIVE = {'lp': [1], 'sk': [1, 2], 'cp': [1], 'ck': [1, 2], 'jp': [1], 'jk': [1], 'proj': [2], 'dp': [1, 2], 'rush': [1, 2], 'super': [2, 3], 'combo': [1], 'super2': [1, 2, 3], 'ultra': [2, 3, 4]}
 LOOP = {'idle': 8, 'walk_f': 10, 'walk_b': 10, 'win': 7, 'intro': 7}
 
 

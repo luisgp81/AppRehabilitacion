@@ -26,7 +26,10 @@ También funciona abriendo `arcade/index.html` directamente (doble clic), aunque
 | Proyectil | Transferencia Inmediata (moneda €) | ¡POW! Viñetazo (viñeta de cómic) | Rebobinado VHS (cinta) |
 | Antiaéreo | Subida del Euríbor | Claqueta Final | Cuernos Heavy |
 | Embestida | Remix Sónico (patada giratoria, 3 golpes) | Submarino Amarillo (carga, 2 golpes) | Patinete Volador (patada en vuelo) |
-| Super | Prompt Definitivo (rayo de red neuronal) | ¡Permanencia! (ola amarilla y azul) | Solo de Guitarra Infinito (rayos) |
+| Super 1 | Prompt Definitivo (rayo de red neuronal) | ¡Permanencia! (ola amarilla y azul) | Solo de Guitarra Infinito (rayos) |
+| Super 2 | OPA Hostil | Plano Secuencia | Avance Rápido x16 |
+| Golpe Final | Rescate Bancario Total (lluvia de euros y datos) | Final en el Carranza (estadio amarillo y azul) | Videoclub Apocalipsis (rayos y cintas VHS) |
+| Remate de combo | Cierre de Operación | Puñetazo de Viñeta | Patada de Culto |
 
 ## Controles
 
@@ -53,10 +56,15 @@ También funciona abriendo `arcade/index.html` directamente (doble clic), aunque
 | `236` + Puño (↓↘→) | Proyectil (input clásico) |
 | `623` + Puño (→↓↘) | Antiaéreo (input clásico) |
 | `214` + Patada (↓↙←) | Embestida (input clásico) |
-| `236236` + Puño | Super (input clásico) |
+| `236236` + Puño | Super 1 (input clásico) |
+| Patada + `SP` a la vez (o `236236` + Patada) | **Super 2**: embestida de 7 impactos (1 barra) |
+| Puño + Patada + `SP` a la vez (o `214214` + Puño) | **GOLPE FINAL**: cinemática de 9 impactos (2 barras); si remata, KO especial |
+| Puño, puño, patada | **Combo arcade** con remate que lanza (cancelable en super) |
 | Abajo + Patada | Barrido (golpe bajo, derriba) |
 | Puño / patada en el aire | Golpe aéreo (hay que bloquearlo de pie) |
 | Doble toque adelante / atrás | Dash / backdash |
+
+**Barra super:** 2 niveles. Super 1 y Super 2 gastan 1; el Golpe Final, 2.
 
 **Combos:** los golpes normales que conectan (o se bloquean) se pueden cancelar: puño → puño → patada → especial → super. El daño escala a la baja en combos largos y los malabares aéreos están limitados.
 

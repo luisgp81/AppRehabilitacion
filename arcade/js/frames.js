@@ -3,7 +3,8 @@
 // Si un personaje no tiene atlas, o le falta una animación, se usa el rig de sprites.js.
 const FrameSprites = (() => {
   const sets = {};
-  const MOVE_ANIM = { lp: 'lp', sk: 'sk', cp: 'cp', ck: 'ck', jp: 'jp', jk: 'jk', proj: 'proj', dp: 'dp', rush: 'rush', super: 'super' };
+  const MOVE_ANIM = { lp: 'lp', sk: 'sk', cp: 'cp', ck: 'ck', jp: 'jp', jk: 'jk', proj: 'proj', dp: 'dp', rush: 'rush', super: 'super', remate: 'combo', super2: 'super2', ultra: 'ultra' };
+  const FALLBACK = { combo: 'sk', super2: 'rush', ultra: 'super' };
   function load(onDone) {
     const idx = window.FRAME_INDEX || {};
     const ids = Object.keys(idx);
@@ -23,8 +24,10 @@ const FrameSprites = (() => {
     const loop = (an, t) => { const a = A[an]; return a ? [an, Math.floor(t * (a.fps || 8) / 60) % a.frames.length] : null; };
     if (!f) return loop(opts.anim || 'idle', opts.t || 0) || loop('idle', opts.t || 0);
     const st = f.state, m = f.move;
-    if (st === 'attack' && m && A[MOVE_ANIM[m.id]]) {
-      const an = MOVE_ANIM[m.id], a = A[an], n = a.frames.length;
+    let man = m && MOVE_ANIM[m.id];
+    if (man && !A[man] && FALLBACK[man]) man = FALLBACK[man];
+    if (st === 'attack' && m && A[man]) {
+      const an = man, a = A[an], n = a.frames.length;
       const act = a.active && a.active.length ? a.active : [Math.floor(n / 2)];
       const first = act[0], last = act[act.length - 1];
       if (f.mf < m.startup) return [an, Math.min(first - 1 < 0 ? 0 : Math.floor((f.mf / m.startup) * first), first)];

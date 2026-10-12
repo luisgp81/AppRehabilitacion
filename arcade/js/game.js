@@ -208,9 +208,10 @@ class Game {
         ['ESPECIAL (L) solo', 'Proyectil'], ['ESPECIAL + ADELANTE', 'Embestida'], ['ESPECIAL + ATRÁS', 'Antiaéreo invencible'], ['ESPECIAL + ABAJO', 'SUPER (barra llena)'],
         ['Clásico: 236 + PUÑO', 'Proyectil'], ['Clásico: 623 + PUÑO', 'Antiaéreo'], ['Clásico: 214 + PATADA', 'Embestida'], ['Clásico: 236236 + PUÑO', 'SUPER'],
         ['(236 = abajo, abajo-adelante, adelante)', ''],
-        ['COMBO', 'Puño, puño, patada > especial'], ['', 'Abajo+patada = barrido (bajo)'],
+        ['PATADA + ESPECIAL', 'SUPER 2 (1 barra)'], ['PUÑO+PATADA+ESPECIAL', 'GOLPE FINAL (2 barras)'],
+        ['COMBO', 'Puño, puño, patada = remate'],
       ];
-      rows.forEach((r, i) => { const y = 66 + i * 26; txt(ctx, r[0], 60, y, 8, '#fff', 'left', false); txt(ctx, r[1], 590, y, 8, '#9bf0ff', 'right', false); });
+      rows.forEach((r, i) => { const y = 60 + i * 23; txt(ctx, r[0], 60, y, 8, '#fff', 'left', false); txt(ctx, r[1], 590, y, 8, '#9bf0ff', 'right', false); });
     } else {
       const list = pg === 2 ? [CHARS[0], CHARS[1]] : [CHARS[2]];
       comicText(ctx, 'GOLPES POR PERSONAJE', W / 2, 26, 16, '#f4c20d');
@@ -218,8 +219,8 @@ class Game {
         const y0 = 58 + i * 140;
         txt(ctx, c.name + ' · ' + c.title + ' · ' + c.style.toUpperCase(), 40, y0, 9, c.color, 'left');
         const mv = c.moves;
-        [['PROYECTIL', mv.proj.name], ['ANTIAÉREO', mv.dp.name], ['EMBESTIDA', mv.rush.name], ['SUPER', mv.super.name]]
-          .forEach((r, j) => { txt(ctx, r[0], 56, y0 + 24 + j * 22, 8, '#cfc6ff', 'left', false); txt(ctx, r[1], 600, y0 + 24 + j * 22, 8, '#fff', 'right', false); });
+        [['PROYECTIL', mv.proj.name], ['ANTIAÉREO', mv.dp.name], ['EMBESTIDA', mv.rush.name], ['REMATE', mv.remate.name], ['SUPER 1', mv.super.name], ['SUPER 2', mv.super2.name], ['GOLPE FINAL', mv.ultra.name]]
+          .forEach((r, j) => { txt(ctx, r[0], 56, y0 + 20 + j * 15, 7, '#cfc6ff', 'left', false); txt(ctx, r[1], 600, y0 + 20 + j * 15, 7, j === 6 ? '#f4c20d' : '#fff', 'right', false); });
       });
       if (pg === 3) {
         const lines = wrap(ctx, 'Luis: equilibrado. Juan Carlos: más vida y daño, más lento. Sebas: rápido y saltarín, menos vida.', 560, 8);
@@ -362,8 +363,80 @@ class Game {
     this.time = (this.mode === 'training' || !this.settings.time) ? Infinity : this.settings.time * 60;
     this.phase = 'ready'; this.pt = 0; this.hitstop = 0; this.freezeT = 0;
     this.combos = [null, null]; this.callouts = [null, null];
-    this.koSlow = 0; this.roundWinner = null;
+    this.koSlow = 0; this.roundWinner = null; this.ultra = null; this.ultraKO = false;
     this.go('fight');
+  }
+  // ── GOLPE FINAL: cinemática de 9 impactos ──
+  startUltra(a, d, m) {
+    this.ultra = { a, d, m, t: 0, theme: a.ch.moves.ultra.theme, name: a.ch.moves.ultra.name };
+    this.projectiles = this.projectiles.filter(p => p.owner !== d);
+    a.invuln = 999; d.invuln = 0; a.vx = d.vx = 0; d.vy = 0; d.y = 0; a.y = 0;
+    d.state = 'hitstun'; d.stun = 999; d.move = null; d.t = 0;
+    d.x = Math.max(STAGE_L + 40, Math.min(STAGE_R - 40, a.x + a.facing * 70));
+    this.flashT = 10; this.shake(10);
+    Audio8.play('superStart'); Audio8.say(this.ultra.name.toLowerCase());
+  }
+  updUltra() {
+    const u = this.ultra, a = u.a, d = u.d;
+    u.t++;
+    const HITS = [24, 34, 44, 54, 64, 74, 86, 100, 124];
+    const seq = ['lp', 'sk', 'lp', 'cp', 'sk', 'rush', 'dp', 'super', 'super'];
+    const k = HITS.indexOf(u.t);
+    if (k >= 0) {
+      const mv = a.moves[seq[k]];
+      a.state = 'attack'; a.move = mv; a.mf = mv.startup; a.t = 0;
+      if (k === 6) { a.y = 0.1; }
+      // el atacante cambia de lado a mitad de la paliza
+      if (k === 4) { a.x = Math.max(STAGE_L + 40, Math.min(STAGE_R - 40, d.x - a.facing * 70)); }
+      const last = k === HITS.length - 1;
+      const dmg = Math.round((last ? 120 : 30) * a.ch.stats.power);
+      d.hp = Math.max(0, d.hp - dmg); d.combo++; d.comboDmg += dmg; a.stats.hits++;
+      a.stats.maxCombo = Math.max(a.stats.maxCombo, d.combo);
+      this.combos[a.idx] = { hits: d.combo, dmg: d.comboDmg, t: 120 };
+      d.state = 'hitstun'; d.t = 0; d.flash = 5;
+      const sx = d.x, sy = GROUND - 80;
+      this.fx.spark(sx, sy, last ? '#fff' : '#ffe36e', last ? 30 : 14, last ? 2 : 1.3);
+      this.fx.word(sx + (RNG() - 0.5) * 60, sy - 40, pickR(last ? ['¡KABOOM!', '¡FINAL!'] : HEAVY_WORDS.concat(KO_WORDS)), pickR(['#f4c20d', '#ff5b7a', '#5effa0', '#9bf0ff']), last ? 24 : 15);
+      this.fx.icons(sx, sy, { bank: 'euro', stadium: 'star', metal: 'bolt' }[u.theme] || 'star', last ? 20 : 6);
+      Audio8.play(last ? 'superHit' : 'hitHeavy'); this.shake(last ? 14 : 6);
+      if (last) this.flashT = 14;
+    }
+    if (u.t === 150) {
+      this.ultra = null;
+      a.invuln = 12; a.state = 'idle'; a.move = null; a.y = 0; a.vy = 0;
+      a.facing = d.x >= a.x ? 1 : -1;
+      d.invuln = 0;
+      if (d.hp <= 0) { this.ultraKO = true; this.ko(a, d); d.vx = 6 * a.facing; d.vy = 11; }
+      else { d.state = 'launched'; d.vy = 10; d.y = 0.5; d.vx = 5 * a.facing; d.juggle = 3; d.invuln = 80; }
+    }
+  }
+  drawUltra(ctx) {
+    const u = this.ultra, t = u.t, k = Math.min(1, t / 12);
+    ctx.save();
+    if (u.theme === 'bank') {
+      ctx.fillStyle = `rgba(2,24,12,${0.85 * k})`; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(94,255,160,0.55)'; ctx.font = `10px ${FONT}`; ctx.textAlign = 'center';
+      for (let i = 0; i < 40; i++) { const x = (i * 16.3) % W, y = ((t * (3 + i % 4) + i * 53) % (H + 40)) - 20; ctx.fillText(i % 5 ? (i % 2 ? '1' : '0') : '€', x, y); }
+      ctx.strokeStyle = '#5effa0'; ctx.lineWidth = 3; ctx.beginPath();
+      for (let i = 0; i <= 20; i++) { const x = i * 32, y = 300 - i * 11 * Math.min(1, t / 100) + Math.sin(i * 1.7) * 14; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
+    } else if (u.theme === 'stadium') {
+      ctx.globalAlpha = 0.85 * k;
+      ctx.translate(W / 2, H / 2); ctx.rotate(t * 0.01);
+      for (let i = 0; i < 16; i++) { ctx.fillStyle = i % 2 ? '#1f4fb8' : '#f4c20d'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 800, i * Math.PI / 8, (i + 1) * Math.PI / 8); ctx.fill(); }
+      ctx.setTransform(RES, 0, 0, RES, 0, 0); ctx.globalAlpha = 1;
+      for (let i = 0; i < 60; i++) { ctx.fillStyle = ['#fff', '#f4c20d', '#1f4fb8', '#e8423a'][i % 4]; ctx.fillRect((i * 37 + t * (1 + i % 3)) % W, (i * 61 + t * (2 + i % 4)) % H, 4, 6); }
+    } else {
+      ctx.fillStyle = `rgba(20,0,36,${0.88 * k})`; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = '#d6b3ff'; ctx.lineWidth = 2;
+      for (let b = 0; b < 4; b++) { if ((t + b * 7) % 9 > 4) continue; let x = (b * 173 + t * 13) % W; ctx.beginPath(); ctx.moveTo(x, 0); for (let y = 0; y < H; y += 24) { x += (RNG() - 0.5) * 40; ctx.lineTo(x, y); } ctx.stroke(); }
+      for (let i = 0; i < 14; i++) { const x = (i * 47) % W, y = ((t * 4 + i * 71) % (H + 40)) - 20; ctx.fillStyle = '#111'; ctx.fillRect(x, y, 22, 13); ctx.fillStyle = '#e8423a'; ctx.fillRect(x + 3, y + 2, 16, 3); }
+    }
+    ctx.restore();
+    // franja con el nombre
+    const yb = 118;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, yb - 20, W, 40);
+    comicText(ctx, 'GOLPE FINAL', W / 2, yb - 4, 10, '#f4c20d');
+    comicText(ctx, u.name, W / 2 + Math.max(0, 40 - t * 3), yb + 12, 14, '#fff');
   }
   hasProjectile(f) { return this.projectiles.some(p => p.owner === f && !p.isSuper); }
   callout(f, name) { this.callouts[f.idx] = { text: name, t: 70 }; }
@@ -398,6 +471,7 @@ class Game {
     if (startP && this.phase !== 'end') { this.paused = { idx: 0 }; Audio8.play('select'); this.go('pause'); return; }
     this.pt++;
     if (this.freezeT > 0) { this.freezeT--; updatePose(f1); updatePose(f2); return; }
+    if (this.ultra) { this.updUltra(); updatePose(f1); updatePose(f2); for (const f of [f1, f2]) { if (f.dispHp > f.hp) f.dispHp = Math.max(f.hp, f.dispHp - 8); } return; }
     if (this.hitstop > 0) { this.hitstop--; return; }
     if (this.koSlow > 0) { this.koSlow--; if (this.koSlow % 3) { return; } }
 
@@ -423,12 +497,12 @@ class Game {
     this.updateProjectiles();
     // entrenamiento: vida y super infinitos
     if (this.mode === 'training') {
-      for (const f of [f1, f2]) { if (f.combo === 0 && GROUND_FREE.includes(f.state)) f.hp = Math.min(f.maxHp, f.hp + 20); f.meter = 100; if (f.hp < 1) f.hp = 1; }
+      for (const f of [f1, f2]) { if (f.combo === 0 && GROUND_FREE.includes(f.state)) f.hp = Math.min(f.maxHp, f.hp + 20); f.meter = 200; if (f.hp < 1) f.hp = 1; }
     }
     for (const f of [f1, f2]) {
       if (f.dispHp > f.hp) { if (!GROUND_FREE.includes(f.state) && f.state !== 'knockdown') { /* espera */ } else f.dispHp = Math.max(f.hp, f.dispHp - 6); }
       else f.dispHp = f.hp;
-      f.meter = Math.min(100, f.meter);
+      f.meter = Math.min(200, f.meter);
       updatePose(f);
     }
     for (let k = 0; k < 2; k++) {
@@ -532,6 +606,7 @@ class Game {
       if (d.hp <= 0) this.ko(a, d);
       return 'block';
     }
+    if (m.kind === 'ultra') { this.startUltra(a, d, m); return 'hit'; }
     const counter = d.state === 'attack' && d.counterable;
     const scale = Math.max(0.3, 1 - 0.12 * d.combo);
     const dmg = Math.max(1, Math.round(m.dmg * a.ch.stats.power * scale * (counter ? 1.25 : 1)));
@@ -606,6 +681,7 @@ class Game {
       if (f.pose) { ctx.save(); ctx.globalAlpha = 0.14; ctx.translate(0, GROUND * 2 + 4); ctx.scale(1, -1); drawFighterAt(ctx, f.look, f.x, GROUND + f.y, f.pose, this.visFacing(f), this.frame, { fighter: f }); ctx.restore(); }
     }
     if (fr) { ctx.fillStyle = 'rgba(5,0,20,0.72)'; ctx.fillRect(0, 0, W, H); }
+    if (this.ultra) this.drawUltra(ctx);
     const order = (f2.state === 'attack' && f1.state !== 'attack') ? [f1, f2] : [f2, f1];
     for (const f of order) this.drawFighter(ctx, f);
     for (const p of this.projectiles) drawProjectile(ctx, p, this.frame);
@@ -616,7 +692,7 @@ class Game {
     this.drawPhaseText(ctx);
   }
   visFacing(f) {
-    if (f.state === 'attack' && f.move && f.move.id === 'rush' && f.move.style === 'spin' && f.isActive()) return Math.floor(f.mf / 4) % 2 ? -f.facing : f.facing;
+    if (f.state === 'attack' && f.move && f.move.anim === 'rush' && f.move.style === 'spin' && f.isActive()) return Math.floor(f.mf / 4) % 2 ? -f.facing : f.facing;
     return f.facing;
   }
   drawFighter(ctx, f) {
@@ -628,7 +704,7 @@ class Game {
     if (f.state === 'attack' && f.move && (f.move.kind === 'special' || f.move.kind === 'super')) glow = f.ch.color;
     const expr = f.state === 'ko' ? 'ko' : (f.state === 'hitstun' || f.state === 'launched' || f.state === 'knockdown') ? 'hurt' : f.state === 'win' ? 'win' : 'normal';
     // extras de golpe
-    if (f.state === 'attack' && f.move && f.move.id === 'rush') this.drawRushFx(ctx, f);
+    if (f.state === 'attack' && f.move && f.move.anim === 'rush') this.drawRushFx(ctx, f);
     if (f.state === 'attack' && f.move && f.move.id === 'dp' && f.isActive()) this.drawDpFx(ctx, f);
     const t0 = performance.now();
     drawFighterAt(ctx, f.look, f.x, GROUND - f.y, f.pose, this.visFacing(f), this.frame, { glow, expr, state: f.state, flash: f.flash > 0, fighter: f });
@@ -638,7 +714,7 @@ class Game {
     if (PARAMS.has('boxes')) this.drawBoxes(ctx, f);
   }
   drawRushFx(ctx, f) {
-    const st = f.move.style, x = f.x, y = GROUND - f.y;
+    const st = f.move.style || 'charge', x = f.x, y = GROUND - f.y;
     if (!f.isActive()) return;
     ctx.save(); ctx.translate(x, y); ctx.scale(f.facing, 1);
     if (st === 'charge') { // submarino amarillo
@@ -679,7 +755,7 @@ class Game {
     drawPortrait(ctx, f.look, left ? 120 : W - 120, y, 150, left ? 1 : -1, this.frame, 'win');
     ctx.restore();
     comicText(ctx, f.move ? f.move.name : this.freezeName, left ? 400 : 240, y, 14, '#fff');
-    comicText(ctx, 'SUPER', left ? 400 : 240, y - 30, 10, '#f4c20d');
+    comicText(ctx, f.move && f.move.kind === 'ultra' ? 'GOLPE FINAL' : 'SUPER', left ? 400 : 240, y - 30, 10, '#f4c20d');
     ctx.restore();
   }
   drawHUD(ctx) {
@@ -720,12 +796,16 @@ class Game {
     txt(ctx, tsec, 320, 25, 16, this.time < 600 ? '#ff5b5b' : '#f4c20d');
     // barras de super
     [[f1, 16, false], [f2, W - 176, true]].forEach(([f, x, flip]) => {
-      const y = 330, w = 160, full = f.meter >= 100;
+      const y = 330, w = 160, lv = Math.floor(f.meter / 100);
       ctx.fillStyle = OUT; ctx.fillRect(x - 2, y - 2, w + 4, 12);
-      ctx.fillStyle = '#10213a'; ctx.fillRect(x, y, w, 8);
-      ctx.fillStyle = full ? (Math.floor(this.frame / 5) % 2 ? '#5effa0' : '#9bf0ff') : '#2f7bf0';
-      if (flip) ctx.fillRect(x + w * (1 - f.meter / 100), y, w * f.meter / 100, 8); else ctx.fillRect(x, y, w * f.meter / 100, 8);
-      txt(ctx, full ? '¡SUPER LISTO!' : 'SUPER', flip ? x + w : x, y - 9, 7, full ? '#5effa0' : '#9bf0ff', flip ? 'right' : 'left');
+      for (let i = 0; i < 2; i++) {
+        const sx = flip ? x + w / 2 * (1 - i) : x + w / 2 * i, part = Math.max(0, Math.min(100, f.meter - i * 100)) / 100;
+        ctx.fillStyle = '#10213a'; ctx.fillRect(sx + 1, y, w / 2 - 2, 8);
+        ctx.fillStyle = part >= 1 ? (Math.floor(this.frame / 5) % 2 ? (i ? '#f4c20d' : '#5effa0') : '#9bf0ff') : '#2f7bf0';
+        if (flip) ctx.fillRect(sx + 1 + (w / 2 - 2) * (1 - part), y, (w / 2 - 2) * part, 8); else ctx.fillRect(sx + 1, y, (w / 2 - 2) * part, 8);
+      }
+      const label = lv >= 2 ? '¡GOLPE FINAL LISTO!' : lv === 1 ? 'SUPER x1' : 'SUPER';
+      txt(ctx, label, flip ? x + w : x, y - 9, 7, lv >= 2 ? '#f4c20d' : lv ? '#5effa0' : '#9bf0ff', flip ? 'right' : 'left');
     });
     // combos y nombres de golpe
     for (let k = 0; k < 2; k++) {
@@ -746,7 +826,7 @@ class Game {
       if (pt < 100) {
         const s = 1 + Math.max(0, (14 - pt) / 6);
         ctx.save(); ctx.translate(W / 2, 150); ctx.scale(s, s);
-        comicText(ctx, this.phase === 'ko' ? (this.roundWinner ? 'K.O.' : 'DOBLE K.O.') : 'TIEMPO', 0, 0, 44, '#e8423a'); ctx.restore();
+        comicText(ctx, this.phase === 'ko' ? (this.ultraKO ? '¡GOLPE FINAL!' : this.roundWinner ? 'K.O.' : 'DOBLE K.O.') : 'TIEMPO', 0, 0, this.ultraKO ? 30 : 44, this.ultraKO ? '#f4c20d' : '#e8423a'); ctx.restore();
       } else {
         const w = this.roundWinner;
         comicText(ctx, w ? `GANA ${w.ch.name}` : 'EMPATE', W / 2, 140, 22, '#f4c20d');
