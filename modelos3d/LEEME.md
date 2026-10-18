@@ -14,4 +14,4 @@
 | Adherencia | Ninguna o borde (brim) 5 mm; la peana ya da superficie |
 | Temperaturas | 205 °C boquilla / 60 °C cama |
 
-Tiempo estimado: ~8–10 h a 0,16 mm · ~55–65 g de PLA.
+Orientativo: ~70–85 g de PLA (volumen macizo 160 cm³). Cura calcula el tiempo y gramos exactos al laminar.
