@@ -10,7 +10,7 @@
 | Soportes | No hacen falta |
 | Tiempo estimado | 3 h 38 min (estimación del laminador) |
 | Filamento | 74 g · 24,8 m |
-| Figura montada | ~148 mm de alto |
+| Figura montada | 160 mm de alto |
 
 ## Piezas (6, todas en una bandeja)
 Torso con pelvis · cabeza · 2 brazos · 2 piernas. Se imprimen de pie, en la misma posición en que van montadas.
