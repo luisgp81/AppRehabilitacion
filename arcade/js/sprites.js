@@ -7,8 +7,9 @@ const RES = 2; // píxeles reales por píxel lógico (el canvas es 1280x720 para
 // F = brazo/pierna adelantados (hacia el rival), B = atrasados.
 const RIGS = {
   luis: {
-    k: 0.58, face: [118, 2, 86, 86],
-    j: { hip: [150, 165], neck: [160, 78], head: [160, 34], shF: [186, 84], elF: [230, 128], haF: [208, 70], shB: [96, 76], elB: [70, 98], haB: [112, 88], hipF: [174, 170], knF: [224, 218], anF: [210, 288], hipB: [124, 170], knB: [82, 224], anB: [42, 292] },
+    // sprite con traje bancario (ficha LUIS-00 generada en Canva)
+    k: 0.58, face: [112, 2, 72, 72],
+    j: { hip: [145, 175], neck: [145, 72], head: [150, 35], shF: [172, 84], elF: [206, 118], haF: [190, 62], shB: [100, 80], elB: [66, 94], haB: [108, 78], hipF: [165, 180], knF: [214, 226], anF: [200, 300], hipB: [122, 180], knB: [80, 240], anB: [42, 300] },
   },
   jc: {
     k: 0.58, face: [86, 50, 90, 90],
