@@ -18,11 +18,15 @@ Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e21
 - `process_frames.py`: quita fondo, separa fotogramas, alinea y crea el atlas que el juego usa solo.
 - `gen_sprites.py`: misma generación por API de Gemini (opcional, necesita clave).
 
+**Arte nuevo de Luis (traje)**: 9 de 10 hojas de ChatGPT importadas (LUIS-H02…H10). Son 26 animaciones y 138 fotogramas, más guardia y andar de Canva.
+El recorte separa las figuras por manchas conectadas o, si se tocan, con un corte serpenteante que rodea brazos y piernas.
+
 ## Pendiente
 
-1. **Generar las 90 imágenes** (lo único que falta para el salto de calidad visual). Prioridad: Fase 2 (Super 2, Golpe Final, Remate) y Fase 1.
-2. **Luis con traje bancario**: llega con su ficha `LUIS-00`; hasta entonces lleva el kimono recoloreado.
-3. Revisar en el juego cada animación importada y regenerar las que salten de tamaño o posición.
+1. **LUIS-H01** (guardia, andar adelante, andar atrás). Mientras tanto, guardia y andar adelante salen de Canva y andar atrás usa el rig.
+   Importar con `python3 tools/chatgpt_sheets.py import LUIS-H01 hoja.png && python3 tools/process_frames.py --char luis`.
+2. **Juan Carlos y Sebas**: sus 10 hojas cada uno (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
+3. Retoques menores: algún resto de zapatilla o puño del vecino en el super y en la embestida de Luis.
 
 ## Cómo continuar (elige una)
 
