@@ -5,6 +5,7 @@
   python3 chatgpt_sheets.py prompts            → JSON con los prompts (lo usa el Taller de Sprites)
   python3 chatgpt_sheets.py import LUIS-H03 hoja.png [JC-H01 otra.png ...]
       → corta cada fila y la deja como tira en assets/raw/<id>/<anim>.png; después: process_frames.py
+      LUIS-H01:3 voltea la fila 3 (si ChatGPT la dibujó mirando a la izquierda); varias: LUIS-H01:2,3
 """
 import json, pathlib, sys
 import numpy as np
@@ -76,14 +77,16 @@ def do_import(args):
     table = {it['code']: (cid, it['rows']) for cid, items in prompts().items() for it in items}
     if len(args) % 2: sys.exit(__doc__)
     for code, src in zip(args[::2], args[1::2]):
-        code = code.upper()
+        code, _, flip = code.upper().partition(':')
+        flip = {int(r) for r in flip.split(',') if r}
         if code not in table: sys.exit(f'Código desconocido: {code}')
         cid, rows = table[code]
         img = Image.open(src).convert('RGB')
         d = RAW / cid; d.mkdir(parents=True, exist_ok=True)
         counts_f = d / 'counts.json'
         counts = json.loads(counts_f.read_text()) if counts_f.exists() else {}
-        for (an, n), strip in zip(rows, split_rows(img, len(rows))):
+        for r, ((an, n), strip) in enumerate(zip(rows, split_rows(img, len(rows))), 1):
+            if r in flip: strip = strip.transpose(Image.FLIP_LEFT_RIGHT)
             strip.save(d / f'{an}.png'); counts[an] = n
             print(f'{code} fila → {cid}/{an}.png ({n} fotogramas)')
         counts_f.write_text(json.dumps(counts))

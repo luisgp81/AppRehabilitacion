@@ -17,6 +17,27 @@ const FrameSprites = (() => {
       img.src = `assets/frames/${id}/atlas.png`;
     }
   }
+  // Color alternativo (combate espejo): los azules (traje, vaqueros, chaqueta) pasan a gris marengo y
+  // lo demás se respeta; girar el tono de todo deja la piel verde. Se calcula una vez por atlas; si el
+  // navegador no deja leer los píxeles (file://), se usa el filtro de tono sobre todo el sprite.
+  function altImage(set) {
+    if (set.alt !== undefined) return set.alt;
+    set.alt = null;
+    try {
+      const c = document.createElement('canvas'); c.width = set.img.width; c.height = set.img.height;
+      const g = c.getContext('2d'); g.drawImage(set.img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height), a = d.data;
+      for (let i = 0; i < a.length; i += 4) {
+        if (!a[i + 3]) continue;
+        const r = a[i], gg = a[i + 1], b = a[i + 2];
+        if (b <= r + 12 || b <= gg) continue; // solo azules
+        const y = 0.3 * r + 0.59 * gg + 0.11 * b, v = Math.min(255, y * 1.25 + 8);
+        a[i] = v; a[i + 1] = v; a[i + 2] = Math.min(255, v * 1.08);
+      }
+      g.putImageData(d, 0, 0); set.alt = c;
+    } catch (e) { set.alt = null; }
+    return set.alt;
+  }
   const pick = (arr, k) => arr[Math.max(0, Math.min(arr.length - 1, k))];
   // Devuelve [animación, índice] para un luchador en combate o una petición directa {anim, t}
   function choose(set, f, opts) {
@@ -76,9 +97,10 @@ const FrameSprites = (() => {
     ctx.save();
     ctx.translate(x, gy); ctx.scale(facing * k, k);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    if (opts.alt && 'filter' in ctx) ctx.filter = 'hue-rotate(150deg) saturate(1.2)';
-    ctx.drawImage(set.img, sx, sy, sw, sh, -fr.ax, -fr.ay, sw, sh);
-    if (opts.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.45; ctx.drawImage(set.img, sx, sy, sw, sh, -fr.ax, -fr.ay, sw, sh); }
+    let img = set.img;
+    if (opts.alt) { img = altImage(set) || set.img; if (img === set.img && 'filter' in ctx) ctx.filter = 'hue-rotate(150deg) saturate(1.2)'; }
+    ctx.drawImage(img, sx, sy, sw, sh, -fr.ax, -fr.ay, sw, sh);
+    if (opts.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.45; ctx.drawImage(img, sx, sy, sw, sh, -fr.ax, -fr.ay, sw, sh); }
     ctx.restore();
     return true;
   }

@@ -18,15 +18,16 @@ Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e21
 - `process_frames.py`: quita fondo, separa fotogramas, alinea y crea el atlas que el juego usa solo.
 - `gen_sprites.py`: misma generación por API de Gemini (opcional, necesita clave).
 
-**Arte nuevo de Luis (traje)**: 9 de 10 hojas de ChatGPT importadas (LUIS-H02…H10). Son 26 animaciones y 138 fotogramas, más guardia y andar de Canva.
+**Arte nuevo de Luis (traje), completo**: las 10 hojas de ChatGPT (LUIS-H01…H10), 29 animaciones y 162 fotogramas.
 El recorte separa las figuras por manchas conectadas o, si se tocan, con un corte serpenteante que rodea brazos y piernas.
+En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la piel y el resto de colores.
 
 ## Pendiente
 
-1. **LUIS-H01** (guardia, andar adelante, andar atrás). Mientras tanto, guardia y andar adelante salen de Canva y andar atrás usa el rig.
-   Importar con `python3 tools/chatgpt_sheets.py import LUIS-H01 hoja.png && python3 tools/process_frames.py --char luis`.
-2. **Juan Carlos y Sebas**: sus 10 hojas cada uno (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
-3. Retoques menores: algún resto de zapatilla o puño del vecino en el super y en la embestida de Luis.
+1. **Juan Carlos y Sebas**: sus 10 hojas cada uno (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
+   Importar: `python3 tools/chatgpt_sheets.py import JC-H01 hoja.png ... && python3 tools/process_frames.py --char jc`.
+   Si una fila sale mirando a la izquierda: `JC-H01:3` la voltea (le pasó a LUIS-H01, fila «andar atrás»).
+2. Retoques menores: algún resto de zapatilla o puño del vecino en el super y en la embestida de Luis.
 
 ## Cómo continuar (elige una)
 
