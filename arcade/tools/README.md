@@ -41,3 +41,13 @@ python3 tools/process_frames.py --char luis                # 3) croma, separar, 
 3. Importa por código y procesa:
    `python3 tools/import_frames.py LUIS-00 ficha.png LUIS-03 punetazo.png` → `python3 tools/process_frames.py --char luis`
    Acepta fondos no croma (los quita BiRefNet en local) y entregas parciales (la ficha hace de guardia hasta que llegue «idle»).
+
+## Hojas para ChatGPT (162 fotogramas por personaje)
+
+`chatgpt_sheets.py` define 10 hojas por personaje (3 animaciones por hoja, una por fila).
+Prompts en el Taller de Sprites (`tools/taller-sprites.html`). Adjuntar: `assets/reference/luis-traje.png`, `jc.png`, `sebas.png`.
+
+```bash
+python3 tools/chatgpt_sheets.py import LUIS-H01 hoja1.png LUIS-H07 hoja7.png   # corta filas → assets/raw/luis/
+python3 tools/process_frames.py --char luis                                   # fotogramas → atlas
+```

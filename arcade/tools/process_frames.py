@@ -96,9 +96,13 @@ def pack(frames, maxw=2048):
 def process(cid, H):
     src = RAW / cid
     per = {}
+    # hojas de ChatGPT: nº de fotogramas por fila (chatgpt_sheets.py import)
+    counts = json.loads((src / 'counts.json').read_text()) if (src / 'counts.json').exists() else {}
+    nframes = {}
     for an, (n, _) in ANIMS.items():
         p = src / f'{an}.png'
-        if p.exists(): per[an] = split(remove_bg(Image.open(p)), n)
+        nframes[an] = counts.get(an, n)
+        if p.exists(): per[an] = split(remove_bg(Image.open(p)), nframes[an])
     if 'idle' not in per and (src / 'sheet.png').exists():
         per['idle'] = split(remove_bg(Image.open(src / 'sheet.png')), 1)  # entrega parcial: la ficha hace de guardia
     if 'idle' not in per:
@@ -115,7 +119,11 @@ def process(cid, H):
             cx, bottom = anchor(f2)
             out.append({'i': len(allf), 'ax': round(cx, 1), 'ay': round(bottom, 1)})
             allf.append(f2)
-        meta[an] = {'frames': out, 'fps': LOOP.get(an), 'active': ACTIVE.get(an)}
+        act = ACTIVE.get(an)
+        if act and nframes.get(an, ANIMS[an][0]) != ANIMS[an][0]:  # reescalar el fotograma de impacto
+            k = (len(out) - 1) / max(1, ANIMS[an][0] - 1)
+            act = sorted({min(len(out) - 1, round(i * k)) for i in act})
+        meta[an] = {'frames': out, 'fps': LOOP.get(an), 'active': act}
     atlas, rects = pack(allf)
     d = OUT / cid; d.mkdir(parents=True, exist_ok=True)
     atlas.save(d / 'atlas.png', optimize=True)
