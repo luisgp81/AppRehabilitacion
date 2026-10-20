@@ -71,6 +71,7 @@ def split_blobs(img, n):
             dx = max(0, mx.start - xs.stop, xs.start - mx.stop); dy = max(0, my.start - ys.stop, ys.start - my.stop)
             return dx + dy
         m = min(main, key=dist)
+        if ys.stop <= boxes[m][0].start + 2: continue  # por encima de la cabeza: es de la fila de arriba
         if dist(m) < 0.12 * H: owner[i] = owner[m]
     src = np.asarray(img)
     frames = []
@@ -105,7 +106,7 @@ def clean(fr):
     m = int(area.argmax()); my, mx = boxes[m]; H = my.stop - my.start
     keep = [m + 1]
     for i, (ys, xs) in enumerate(boxes):
-        if i == m or area[i] < 30: continue
+        if i == m or area[i] < 30 or ys.stop <= my.start + 2: continue  # por encima de la cabeza: fila de arriba
         gap = max(0, mx.start - xs.stop, xs.start - mx.stop) + max(0, my.start - ys.stop, ys.start - my.stop)
         if gap < 0.06 * H and area[i] > 0.002 * area[m]: keep.append(i + 1)
     out = np.asarray(fr).copy(); out[..., 3] = np.where(np.isin(lab, keep), out[..., 3], 0)
@@ -164,6 +165,8 @@ def process(cid, H):
         nframes[an] = counts.get(an, n)
         if p.exists():
             per[an] = split(remove_bg(Image.open(p)), nframes[an])
+    if 'idle' not in per and 'intro' in per:
+        per['idle'] = per['intro']  # falta la hoja H01: la intro (pose de guardia) hace de guardia provisional
     if 'idle' not in per and (src / 'sheet.png').exists():
         per['idle'] = split(remove_bg(Image.open(src / 'sheet.png')), 1)  # entrega parcial: la ficha hace de guardia
     if 'idle' not in per:

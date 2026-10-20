@@ -7,7 +7,7 @@ const CHARS = [
     style: 'Equilibrado',
     stats: { hp: 1000, walkF: 2.9, walkB: 2.3, jumpV: 11.6, jumpX: 3.4, power: 1.0, projSpeed: 6.2, rushSpeed: 6.6 },
     look: {
-      scale: 1.58, bulk: 0, head: 'luis',
+      height: 1.78, scale: 1.58, bulk: 0, head: 'luis',
       skin: '#e2a883', skinShade: '#b47a59', hair: '#808080', hairHi: '#b4b4b4', beard: '#c4c4c4', brow: '#555',
       top: '#22305f', topShade: '#151e40', shirt: '#f3f3f3', tie: '#d62b2b', band: '#d62b2b',
       sleeve: '#22305f', forearm: '#22305f', cuff: '#f3f3f3',
@@ -34,7 +34,7 @@ const CHARS = [
     style: 'Potencia',
     stats: { hp: 1100, walkF: 2.4, walkB: 2.0, jumpV: 11.0, jumpX: 3.0, power: 1.15, projSpeed: 5.2, rushSpeed: 7.2 },
     look: {
-      scale: 1.67, bulk: 3, head: 'jc',
+      height: 1.75, scale: 1.55, bulk: 3, head: 'jc',
       skin: '#e6ab86', skinShade: '#b9805e', hair: '#bdbdbd', hairHi: '#e8e8e8', beard: '#e4e4e4', brow: '#8a8a8a',
       top: '#1c1c1c', topShade: '#0c0c0c', shirt: '#9e1c1c', tie: null, band: null, scarf: ['#f4c20d', '#1f4fb8'],
       sleeve: 'skin', forearm: 'skin', cuff: '#1c1c1c', studs: true,
@@ -61,7 +61,7 @@ const CHARS = [
     style: 'Velocidad',
     stats: { hp: 950, walkF: 3.3, walkB: 2.7, jumpV: 12.2, jumpX: 3.8, power: 0.93, projSpeed: 7.0, rushSpeed: 7.8 },
     look: {
-      scale: 1.51, bulk: -1, head: 'sebas',
+      height: 1.77, scale: 1.57, bulk: -1, head: 'sebas',
       skin: '#dca07c', skinShade: '#ad7553', hair: '#2b2b2b', hairHi: '#777', beard: '#5a5a5a', brow: '#222', glasses: true,
       top: '#2f6fd8', topShade: '#1d4ea3', shirt: '#151515', tie: null, band: null, bolt: true,
       sleeve: '#2f6fd8', forearm: '#2f6fd8', cuff: '#151515',

@@ -63,7 +63,7 @@ const FrameSprites = (() => {
       case 'walk': {
         const fwd = Math.sign(f.vx) === f.facing;
         const an = fwd || !has('walk_b') ? 'walk_f' : 'walk_b';
-        if (!has(an)) break;
+        if (!has(an)) return loop('idle', f.t);
         const n = A[an].frames.length;
         return [an, ((Math.floor(Math.abs(f.x) / 9) % n) + n) % n];
       }
@@ -92,9 +92,9 @@ const FrameSprites = (() => {
     if (!c) return false;
     const fr = set.meta.anims[c[0]].frames[c[1]];
     const [sx, sy, sw, sh] = fr.r;
-    // misma altura en pantalla que el rig: ~ RIGS.k * altura del PNG de referencia
-    const rh = (typeof SpriteRig !== 'undefined' && SpriteRig.rigs[id]) ? SpriteRig.rigs[id].h : 335;
-    const k = (RIGS[id] ? RIGS[id].k * rh / set.meta.height : 0.6) * (opts.scale || 1);
+    // altura en pantalla proporcional a la estatura real (look.height, en metros): 1,78 m → ~194 px en guardia
+    const ch = typeof CHARS !== 'undefined' && CHARS.find(c => c.id === id);
+    const k = (ch && ch.look.height ? 109 * ch.look.height : 194) / set.meta.height * (opts.scale || 1);
     ctx.save();
     ctx.translate(x, gy); ctx.scale(facing * k, k);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';

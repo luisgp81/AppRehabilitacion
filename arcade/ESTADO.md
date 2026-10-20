@@ -26,7 +26,10 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 
 1. **Juan Carlos**: importadas H01–H09 (146 fotogramas). Falta H10 (victoria e intro); mientras tanto usa la guardia.
    La bufanda del Golpe Final se recolorea sola a amarillo y azul al importar.
-   **Sebas**: sus 10 hojas (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
+   **Sebas**: importadas H05–H10 (102 fotogramas). Faltan H01–H04; mientras tanto la intro hace de guardia
+   y los golpes básicos usan fotogramas parecidos de sus especiales.
+   **Estaturas**: Luis 1,78 m, Juan Carlos 1,75 m y Sebas 1,77 m (`look.height` en js/characters.js) fijan su tamaño en pantalla.
+   Antes, sus hojas (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
    Importar: `python3 tools/chatgpt_sheets.py import JC-H01 hoja.png ... && python3 tools/process_frames.py --char jc`.
    Si una fila sale mirando a la izquierda: `JC-H01:3` la voltea (le pasó a LUIS-H01, fila «andar atrás»).
    Las hojas importadas se guardan en `assets/sheets/<id>/` (assets/raw no se versiona). Para reimportar todo:
