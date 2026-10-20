@@ -24,6 +24,8 @@ HREL = {'crouch': 0.72, 'cp': 0.72, 'ck': 0.62, 'hit_crouch': 0.72, 'block_crouc
         'launched': 0.8, 'down': 0.45, 'ko': 0.45, 'getup': 0.75, 'dash': 0.9, 'sk': 1.0, 'dp': 1.1}
 # fotograma "activo" (el que golpea) de cada ataque
 ACTIVE = {'lp': [1], 'sk': [1, 2], 'cp': [1], 'ck': [1, 2], 'jp': [1], 'jk': [1], 'proj': [2], 'dp': [1, 2], 'rush': [1, 2], 'super': [2, 3], 'combo': [1], 'super2': [1, 2, 3], 'ultra': [2, 3, 4]}
+# hojas de ChatGPT (chatgpt_sheets.py): en los aéreos de 4 fotogramas el golpe estirado son el 2º y 3º
+ACTIVE_SHEET = {('jp', 4): [1, 2], ('jk', 4): [1, 2]}
 LOOP = {'idle': 8, 'walk_f': 10, 'walk_b': 10, 'win': 7, 'intro': 7}
 
 
@@ -178,8 +180,8 @@ def process(cid, H):
             cx, bottom = anchor(f2)
             out.append({'i': len(allf), 'ax': round(cx, 1), 'ay': round(bottom, 1)})
             allf.append(f2)
-        act = ACTIVE.get(an)
-        if act and nframes.get(an, ANIMS[an][0]) != ANIMS[an][0]:  # reescalar el fotograma de impacto
+        act = ACTIVE_SHEET.get((an, len(out))) or ACTIVE.get(an)
+        if (an, len(out)) not in ACTIVE_SHEET and act and nframes.get(an, ANIMS[an][0]) != ANIMS[an][0]:  # reescalar el fotograma de impacto
             k = (len(out) - 1) / max(1, ANIMS[an][0] - 1)
             act = sorted({min(len(out) - 1, round(i * k)) for i in act})
         meta[an] = {'frames': out, 'fps': LOOP.get(an), 'active': act}
