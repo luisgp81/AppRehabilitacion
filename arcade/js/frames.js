@@ -4,7 +4,8 @@
 const FrameSprites = (() => {
   const sets = {};
   const MOVE_ANIM = { lp: 'lp', sk: 'sk', cp: 'cp', ck: 'ck', jp: 'jp', jk: 'jk', proj: 'proj', dp: 'dp', rush: 'rush', super: 'super', remate: 'combo', super2: 'super2', ultra: 'ultra' };
-  const FALLBACK = { combo: 'sk', super2: 'rush', ultra: 'super' };
+  // sustitutos mientras falte la hoja de una animación (el rig desentona con el arte nuevo)
+  const FALLBACK = { combo: 'sk', super2: 'rush', ultra: 'super', lp: 'super2', cp: 'super2', sk: 'rush', ck: 'rush', jp: 'dp', jk: 'dp' };
   function load(onDone) {
     const idx = window.FRAME_INDEX || {};
     const ids = Object.keys(idx);
@@ -66,10 +67,10 @@ const FrameSprites = (() => {
         const n = A[an].frames.length;
         return [an, ((Math.floor(Math.abs(f.x) / 9) % n) + n) % n];
       }
-      case 'crouch': if (f.guarding && has('block_crouch')) return ['block_crouch', 0]; if (has('crouch')) return ['crouch', Math.min(1, f.t >> 2)]; break;
-      case 'prejump': case 'land': if (has('jump')) return ['jump', 0]; break;
-      case 'jump': if (has('jump')) return ['jump', f.vy > 4 ? 1 : f.vy > -3 ? 2 : 3]; break;
-      case 'dash': if (has('dash')) return ['dash', Math.min(A.dash.frames.length - 1, f.t >> 2)]; break;
+      case 'crouch': if (f.guarding && has('block_crouch')) return ['block_crouch', 0]; if (has('crouch')) return ['crouch', Math.min(1, f.t >> 2)]; if (has('block_crouch')) return ['block_crouch', 0]; break;
+      case 'prejump': case 'land': if (has('jump')) return ['jump', 0]; if (has('dp')) return ['dp', 0]; break;
+      case 'jump': if (has('jump')) return ['jump', f.vy > 4 ? 1 : f.vy > -3 ? 2 : 3]; if (has('dp')) return ['dp', f.vy < 0 ? 2 : 4]; break;
+      case 'dash': if (has('dash')) return ['dash', Math.min(A.dash.frames.length - 1, f.t >> 2)]; if (has('rush')) return ['rush', Math.min(3, 1 + (f.t >> 3))]; break;
       case 'hitstun': { const an = f.crouching && has('hit_crouch') ? 'hit_crouch' : 'hit'; if (has(an)) return [an, f.t < 4 ? 0 : 1]; break; }
       case 'blockstun': { const an = f.ctrl.held.down && has('block_crouch') ? 'block_crouch' : 'block'; if (has(an)) return [an, f.t < 3 ? 0 : 1]; break; }
       case 'launched': if (has('launched')) return ['launched', f.vy > 0 ? 0 : 1]; break;
