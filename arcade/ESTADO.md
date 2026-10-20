@@ -24,7 +24,7 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 
 ## Pendiente
 
-1. **Juan Carlos**: importadas H01 y H05–H09, ya sale con el arte nuevo. Faltan H02, H03, H04 y H10; mientras tanto, sus golpes básicos, salto, agacharse y carrera usan fotogramas parecidos de otras animaciones suyas (FALLBACK en js/frames.js).
+1. **Juan Carlos**: importadas H01, H02 y H05–H09, ya sale con el arte nuevo. Faltan H03, H04 y H10; mientras tanto, sus golpes básicos usan fotogramas parecidos de otras animaciones suyas (FALLBACK en js/frames.js).
    La bufanda del Golpe Final se recolorea sola a amarillo y azul al importar.
    **Sebas**: sus 10 hojas (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
    Importar: `python3 tools/chatgpt_sheets.py import JC-H01 hoja.png ... && python3 tools/process_frames.py --char jc`.
