@@ -24,9 +24,14 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 
 ## Pendiente
 
-1. **Juan Carlos y Sebas**: sus 10 hojas cada uno (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
+1. **Juan Carlos**: importadas H05–H09 (falta H01, H02, H03, H04 y H10). Su atlas se genera en cuanto llegue H01 (guardia).
+   La bufanda del Golpe Final se recolorea sola a amarillo y azul al importar.
+   **Sebas**: sus 10 hojas (JC-H01…H10, SEBAS-H01…H10) con los prompts del Taller.
    Importar: `python3 tools/chatgpt_sheets.py import JC-H01 hoja.png ... && python3 tools/process_frames.py --char jc`.
    Si una fila sale mirando a la izquierda: `JC-H01:3` la voltea (le pasó a LUIS-H01, fila «andar atrás»).
+   Las hojas importadas se guardan en `assets/sheets/<id>/` (assets/raw no se versiona). Para reimportar todo:
+   `python3 tools/chatgpt_sheets.py import LUIS-H01:3 assets/sheets/luis/LUIS-H01.webp LUIS-H02 assets/sheets/luis/LUIS-H02.webp ...`
+   (LUIS-H01 necesita `:3`: su fila de andar atrás mira a la izquierda).
 2. Retoques menores: algún resto de zapatilla o puño del vecino en el super y en la embestida de Luis.
 
 ## Cómo continuar (elige una)

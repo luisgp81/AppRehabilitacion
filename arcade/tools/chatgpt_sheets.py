@@ -13,6 +13,7 @@ from PIL import Image
 from scipy import ndimage
 
 HERE = pathlib.Path(__file__).resolve().parent
+SHEETS_DIR = HERE.parent / 'assets' / 'sheets'  # copia de cada hoja importada (assets/raw no se versiona)
 sys.path.insert(0, str(HERE))
 from gen_sprites import CHARS, SPECIALS, RAW  # noqa: E402
 
@@ -73,6 +74,23 @@ def split_rows(img, nrows):
     return [img.crop((0, max(0, s - pad), img.width, min(img.height, e + pad))) for s, e in runs]
 
 
+def cadiz_scarf(strip):
+    """ChatGPT pinta la bufanda del Golpe Final de JC en rojo y blanco: la pasa a amarillo y azul (Cádiz).
+    Solo toca la franja alta de los dos últimos fotogramas y respeta la piel y los dientes."""
+    a = np.asarray(strip.convert('RGB')).astype(float)
+    H, W = a.shape[:2]; x0, y1 = int(W * 0.74), int(H * 0.31)
+    reg = a[:y1, x0:]; r, g, b = reg[..., 0], reg[..., 1], reg[..., 2]
+    yy = np.arange(y1)[:, None] * np.ones((1, reg.shape[1]))
+    red = (r > 110) & (g < 95) & (b < 95) & (r - g > 70)
+    white = (r > 165) & (g > 155) & (b > 145) & (np.abs(r - b) < 50) & (yy < H * 0.2)
+    reg[red] = (np.array([250, 200, 25]) * np.clip(r / 230, 0.45, 1.1)[..., None])[red]
+    reg[white] = (np.array([40, 90, 200]) * np.clip((r + g + b) / 660, 0.5, 1.15)[..., None])[white]
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+
+
+FIX = {('jc', 'ultra'): cadiz_scarf}  # retoques automáticos tras cortar una fila
+
+
 def do_import(args):
     table = {it['code']: (cid, it['rows']) for cid, items in prompts().items() for it in items}
     if len(args) % 2: sys.exit(__doc__)
@@ -82,11 +100,14 @@ def do_import(args):
         if code not in table: sys.exit(f'Código desconocido: {code}')
         cid, rows = table[code]
         img = Image.open(src).convert('RGB')
+        keep = SHEETS_DIR / cid; keep.mkdir(parents=True, exist_ok=True)
+        img.save(keep / f"{code}.webp", quality=92, method=6)  # original, para reimportar
         d = RAW / cid; d.mkdir(parents=True, exist_ok=True)
         counts_f = d / 'counts.json'
         counts = json.loads(counts_f.read_text()) if counts_f.exists() else {}
         for r, ((an, n), strip) in enumerate(zip(rows, split_rows(img, len(rows))), 1):
             if r in flip: strip = strip.transpose(Image.FLIP_LEFT_RIGHT)
+            if (cid, an) in FIX: strip = FIX[cid, an](strip)
             strip.save(d / f'{an}.png'); counts[an] = n
             print(f'{code} fila → {cid}/{an}.png ({n} fotogramas)')
         counts_f.write_text(json.dumps(counts))
