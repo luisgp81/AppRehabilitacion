@@ -21,7 +21,7 @@ OUT = pathlib.Path(os.environ.get('FRAMES_OUT', ROOT / 'assets' / 'frames'))
 JS_OUT = pathlib.Path(os.environ.get('FRAMES_JS', ROOT / 'js' / 'frame-index.js'))
 # altura típica de cada animación respecto a 'idle' (mediana de la tira)
 HREL = {'crouch': 0.72, 'cp': 0.72, 'ck': 0.62, 'hit_crouch': 0.72, 'block_crouch': 0.72, 'jump': 0.85, 'jp': 0.8, 'jk': 0.8,
-        'launched': 0.8, 'down': 0.45, 'ko': 0.45, 'getup': 0.75, 'dash': 0.9, 'sk': 1.0, 'dp': 1.1}
+        'launched': 0.8, 'down': 0.45, 'ko': 0.45, 'getup': 0.75, 'dash': 0.9, 'sk': 1.0, 'dp': 1.1, 'win': 1.18}  # win: puño en alto
 # fotograma "activo" (el que golpea) de cada ataque
 ACTIVE = {'lp': [1], 'sk': [1, 2], 'cp': [1], 'ck': [1, 2], 'jp': [1], 'jk': [1], 'proj': [2], 'dp': [1, 2], 'rush': [1, 2], 'super': [2, 3], 'combo': [1], 'super2': [1, 2, 3], 'ultra': [2, 3, 4]}
 # hojas de ChatGPT (chatgpt_sheets.py): en los aéreos de 4 fotogramas el golpe estirado son el 2º y 3º

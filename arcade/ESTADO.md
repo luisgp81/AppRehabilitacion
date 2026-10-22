@@ -24,7 +24,7 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 
 ## Pendiente
 
-1. **Juan Carlos**: importadas H01–H09 (146 fotogramas). Falta H10 (victoria e intro); mientras tanto usa la guardia.
+1. **Juan Carlos**: completo: H01–H10 (162 fotogramas).
    La bufanda del Golpe Final se recolorea sola a amarillo y azul al importar.
    **Sebas**: importadas H01, H02 y H04–H10 (146 fotogramas). Falta H03 (puño, patada, puño agachado);
    mientras tanto esos golpes usan fotogramas parecidos de sus especiales.
