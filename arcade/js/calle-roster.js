@@ -119,6 +119,7 @@ const CALLE_STAGES = [
       { at: 0.74, foes: ['patinadora', 'patinadora', 'socorrista'] },
       { at: 0.93, foes: ['rey', 'macarra'], boss: true },
     ],
+    props: [{ at: 0.08, z: 30, drop: 'billetes' }, { at: 0.26, z: 80, drop: 'bate' }, { at: 0.47, z: 20, drop: 'campero' }, { at: 0.62, z: 70, drop: 'movil' }, { at: 0.82, z: 40, drop: 'vinilo' }],
     items: [{ at: 0.3, z: 70, kind: 'campero' }, { at: 0.68, z: 30, kind: 'espeto' }, { at: 0.88, z: 80, kind: 'espeto' }],
   },
   {
@@ -130,6 +131,7 @@ const CALLE_STAGES = [
       { at: 0.74, foes: ['enmascarado', 'breaker', 'bmx', 'patinadora'] },
       { at: 0.93, foes: ['campeona'], boss: true },
     ],
+    props: [{ at: 0.1, z: 70, drop: 'guitarra' }, { at: 0.3, z: 25, drop: 'vinilo' }, { at: 0.5, z: 80, drop: 'movil' }, { at: 0.66, z: 30, drop: 'campero' }, { at: 0.86, z: 60, drop: 'bate' }],
     items: [{ at: 0.45, z: 40, kind: 'campero' }, { at: 0.85, z: 70, kind: 'espeto' }],
   },
   {
@@ -141,7 +143,24 @@ const CALLE_STAGES = [
       { at: 0.72, foes: ['vigilante', 'yuppie', 'enmascarado', 'gotica'] },
       { at: 0.93, foes: ['director', 'yuppie'], boss: true },
     ],
+    props: [{ at: 0.08, z: 75, drop: 'bate' }, { at: 0.25, z: 30, drop: 'billetes' }, { at: 0.45, z: 70, drop: 'guitarra' }, { at: 0.6, z: 20, drop: 'campero' }, { at: 0.8, z: 55, drop: 'movil' }],
     items: [{ at: 0.4, z: 60, kind: 'campero' }, { at: 0.62, z: 25, kind: 'espeto' }, { at: 0.88, z: 75, kind: 'espeto' }],
   },
 ];
-const CALLE_ITEMS = { espeto: { name: '¡ESPETO!', hp: 0.6, score: 500 }, campero: { name: '¡CAMPERO!', hp: 0.3, score: 300 } };
+// Objetos del suelo: comida (cura), puntos y armas. Salen de los objetos rompibles o de algunos enemigos.
+const CALLE_ITEMS = {
+  espeto: { name: '¡ESPETO!', hp: 0.6, score: 500 },
+  campero: { name: '¡CAMPERO!', hp: 0.3, score: 300 },
+  billetes: { name: '+3000', hp: 0, score: 3000 },
+  vinilo: { name: '+1500', hp: 0, score: 1500 },
+  bate: { weapon: true }, guitarra: { weapon: true }, movil: { weapon: true },
+};
+// Armas: se cogen al pasar por encima y se pierden al gastar sus usos o al caer al suelo.
+// El golpe usa la animación del protagonista ('anim') y el arma se dibuja encima por código.
+const CALLE_WEAPONS = {
+  bate: { name: 'BATE', uses: 8, move: { anim: 'lp', startup: 7, active: 5, recovery: 14, dmg: 48, hitstun: 24, push: 5, hb: { x: 66, y: 74, w: 76, h: 34 } } },
+  guitarra: { name: 'GUITARRA ELÉCTRICA', uses: 5, move: { anim: 'remate', startup: 10, active: 6, recovery: 18, dmg: 72, hitstun: 26, push: 3, knockdown: true, launch: { vx: 4, vy: 7 }, hb: { x: 62, y: 80, w: 84, h: 50 } } },
+  movil: { name: 'MÓVIL LADRILLO', uses: 1, throw: true, move: { anim: 'proj', startup: 8, active: 2, recovery: 14, dmg: 0 } },
+};
+// Objetos rompibles por tema de fase (2 golpes): se dibujan por código
+const CALLE_PROPS = { playa: ['caja', 'nevera', 'caja'], recreativo: ['maquina', 'papelera', 'maquina'], noche: ['bidon', 'bidon', 'papelera'] };

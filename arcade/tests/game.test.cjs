@@ -411,6 +411,31 @@ async function main() {
     await p.close();
   });
 
+  await test('Modo Calle: objetos rompibles, arma, ataque hacia atrás y bonus del cajero', async open => {
+    const p = await open();
+    await toFight(p, 1, []);
+    await p.tap('KeyJ'); await p.step(140);
+    await p.g(() => { const c = SA.game.calle, pl = c.player, pr = c.props[0]; pl.x = pr.x - 40; pl.z = pr.z; pl.facing = 1; });
+    await p.tap('KeyJ', 2, 14); await p.tap('KeyJ', 2, 14);
+    assert(await p.g(() => SA.game.calle.props[0].hp === 0 && SA.game.calle.items.some(i => i.kind === SA.game.calle.props[0].drop)), 'la caja no se rompe o no suelta nada');
+    await p.g(() => { const c = SA.game.calle, pl = c.player; c.items.push({ x: pl.x + 10, z: pl.z, kind: 'bate', taken: false }); });
+    await p.hold(['KeyD'], 6); await p.step(4);
+    assert(await p.g(() => SA.game.calle.player.weapon && SA.game.calle.player.weapon.kind === 'bate'), 'no coge el bate');
+    await p.tap('KeyJ', 2, 20);
+    assert(await p.g(() => SA.game.calle.player.weapon.uses === 7), 'el golpe con bate no gasta un uso');
+    await p.step(20); await p.g(() => { const c = SA.game.calle; c.player.weapon = null; c.player.facing = 1; });
+    await p.keyboard.down('KeyJ'); await p.keyboard.down('KeyK'); await p.step(2); await p.keyboard.up('KeyJ'); await p.keyboard.up('KeyK'); await p.step(4);
+    assert(await p.g(() => SA.game.calle.player.move && SA.game.calle.player.move.id === 'back' && SA.game.calle.player.facing === -1), 'P+K no hace el ataque hacia atrás');
+    await p.step(40);
+    await p.g(() => SA.game.calle.startBonus()); await p.step(70);
+    await p.g(() => { const c = SA.game.calle, pl = c.player; pl.x = c.atm.x - 50; pl.z = c.atm.z; pl.facing = 1; });
+    for (let i = 0; i < 4; i++) await p.tap('KeyJ', 2, 12);
+    assert(await p.g(() => SA.game.calle.atm.hp < SA.game.calle.atm.maxHp && SA.game.calle.bonusScore > 0), 'el cajero no recibe golpes');
+    await p.shot('t21-calle-bonus');
+    assert(!p.errs.length && !(await p.g(() => SA.game.errors.length)), 'errores: ' + p.errs.join(' | '));
+    await p.close();
+  });
+
   await test('Controles táctiles: se muestran y el botón P pulsa', async open => {
     const p = await open('&touch=1');
     assert(await p.locator('#touch').isVisible(), 'overlay táctil oculto');

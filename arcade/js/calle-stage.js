@@ -185,6 +185,14 @@ function drawItem(ctx, it, t) {
   if (it.kind === 'espeto') { // caña con sardinas
     ctx.strokeStyle = '#c8a26a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 16, y); ctx.lineTo(x + 16, y - 10); ctx.stroke();
     for (let i = 0; i < 4; i++) { ctx.fillStyle = '#9fb3c8'; ctx.beginPath(); ctx.ellipse(x - 9 + i * 6, y - 3 - i * 2, 5, 2.4, -0.3, 0, 7); ctx.fill(); }
+  } else if (it.kind === 'billetes') {
+    for (let i = 0; i < 3; i++) { ctx.fillStyle = i % 2 ? '#7cc47a' : '#5fae5d'; ctx.fillRect(x - 12 + i * 3, y - 8 - i * 2, 20, 10); }
+    ctx.fillStyle = '#e8d070'; ctx.fillRect(x - 4, y - 12, 4, 10);
+  } else if (it.kind === 'vinilo') {
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x, y - 8, 10, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8423a'; ctx.beginPath(); ctx.arc(x, y - 8, 3.5, 0, 7); ctx.fill();
+  } else if (it.kind === 'bate' || it.kind === 'guitarra' || it.kind === 'movil') {
+    drawWeapon(ctx, it.kind, x - 10, y - 4, 1, 1.45);
   } else { // campero
     ctx.fillStyle = '#e8b964'; ctx.beginPath(); ctx.ellipse(x, y - 4, 14, 6, 0, 0, 7); ctx.fill();
     ctx.fillStyle = '#5fb04a'; ctx.fillRect(x - 12, y - 4, 24, 2);
@@ -207,6 +215,8 @@ function drawShot(ctx, s) {
   } else if (s.kind === 'cinta') {
     ctx.rotate(s.rot); ctx.fillStyle = '#151515'; ctx.fillRect(-9, -5, 18, 10);
     ctx.fillStyle = '#e8e0d0'; ctx.fillRect(-6, -3, 12, 3); ctx.fillStyle = '#444'; ctx.beginPath(); ctx.arc(-4, 2, 1.5, 0, 7); ctx.arc(4, 2, 1.5, 0, 7); ctx.fill();
+  } else if (s.kind === 'movil') {
+    ctx.rotate(s.rot); ctx.fillStyle = '#2a2a2a'; ctx.fillRect(-4, -9, 8, 18); ctx.fillStyle = '#7fd4ff'; ctx.fillRect(-3, -6, 6, 5); ctx.fillStyle = '#555'; ctx.fillRect(1, -13, 2, 5);
   } else { // píxeles de neón
     ctx.rotate(s.rot * 0.3); ctx.fillStyle = `hsl(${(s.rot * 40) % 360},100%,60%)`; ctx.fillRect(-5, -5, 10, 10);
     ctx.fillStyle = '#fff'; ctx.fillRect(-2, -2, 4, 4);
@@ -222,3 +232,59 @@ function drawDizzy(ctx, x, y, t) {
 
 // los paneles se cargan al arrancar para que estén listos al empezar la fase
 for (const id in (window.STAGE_INDEX || {})) StageArt.load(id);
+
+// Armas: dibujadas por código, giradas alrededor de la empuñadura (ang 0 = horizontal hacia delante)
+function drawWeapon(ctx, kind, x, y, facing, ang) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(facing * 1.4, 1.4); ctx.rotate(ang);
+  if (kind === 'bate') {
+    ctx.fillStyle = '#c8955a'; ctx.beginPath(); ctx.moveTo(0, -1.5); ctx.lineTo(34, -3.5); ctx.lineTo(36, 0); ctx.lineTo(34, 3.5); ctx.lineTo(0, 1.5); ctx.fill();
+    ctx.fillStyle = '#7a4a24'; ctx.fillRect(-4, -2, 8, 4);
+  } else if (kind === 'guitarra') {
+    ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, -1.5, 26, 3); // mástil
+    ctx.fillStyle = '#e8423a'; ctx.beginPath(); ctx.moveTo(24, -9); ctx.lineTo(40, -6); ctx.lineTo(44, 0); ctx.lineTo(40, 7); ctx.lineTo(26, 9); ctx.lineTo(30, 0); ctx.fill();
+    ctx.fillStyle = '#f4f0ff'; ctx.fillRect(32, -2, 6, 4); ctx.fillStyle = '#222'; ctx.fillRect(-4, -2.5, 5, 5);
+  } else {
+    ctx.fillStyle = '#2a2a2a'; ctx.fillRect(-4, -9, 8, 18); ctx.fillStyle = '#7fd4ff'; ctx.fillRect(-3, -6, 6, 5);
+  }
+  ctx.restore();
+}
+// Objetos rompibles
+function drawProp(ctx, pr, t) {
+  const x = pr.x + (pr.shakeT > 0 ? Math.sin(pr.shakeT * 2.5) * 2 : 0), y = groundY(pr.z);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(pr.x, y + 1, 18, 4, 0, 0, 7); ctx.fill();
+  if (pr.hp <= 0) { // restos
+    ctx.fillStyle = '#5a4030'; for (let i = 0; i < 4; i++) ctx.fillRect(x - 14 + i * 8, y - 4 - (i % 2) * 2, 6, 3);
+    return;
+  }
+  const cracked = pr.hp === 1;
+  if (pr.kind === 'caja') {
+    ctx.fillStyle = '#b07a3e'; ctx.fillRect(x - 16, y - 30, 32, 30);
+    ctx.strokeStyle = '#6b4520'; ctx.lineWidth = 2; ctx.strokeRect(x - 16, y - 30, 32, 30); ctx.beginPath(); ctx.moveTo(x - 16, y - 30); ctx.lineTo(x + 16, y); ctx.moveTo(x + 16, y - 30); ctx.lineTo(x - 16, y); ctx.stroke();
+  } else if (pr.kind === 'nevera') {
+    ctx.fillStyle = '#3a8fd8'; ctx.fillRect(x - 16, y - 24, 32, 24); ctx.fillStyle = '#f4f0ff'; ctx.fillRect(x - 17, y - 28, 34, 6); ctx.fillRect(x - 5, y - 32, 10, 4);
+  } else if (pr.kind === 'maquina') { // máquina de bolas de chicle
+    ctx.fillStyle = '#d83a2a'; ctx.fillRect(x - 8, y - 18, 16, 18); ctx.fillStyle = 'rgba(200,240,255,0.7)'; ctx.beginPath(); ctx.arc(x, y - 28, 12, 0, 7); ctx.fill();
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = ['#ff5bd0', '#5effa0', '#ffe03f'][i % 3]; ctx.beginPath(); ctx.arc(x - 6 + (i % 3) * 6, y - 30 + Math.floor(i / 3) * 6, 2.5, 0, 7); ctx.fill(); }
+  } else if (pr.kind === 'papelera') {
+    ctx.fillStyle = '#4a7a4a'; ctx.beginPath(); ctx.moveTo(x - 12, y - 30); ctx.lineTo(x + 12, y - 30); ctx.lineTo(x + 9, y); ctx.lineTo(x - 9, y); ctx.fill();
+    ctx.fillStyle = '#2e5530'; ctx.fillRect(x - 13, y - 32, 26, 4);
+  } else { // bidón
+    ctx.fillStyle = '#7a8a96'; ctx.fillRect(x - 13, y - 34, 26, 34); ctx.fillStyle = '#5a6670'; ctx.fillRect(x - 13, y - 24, 26, 3); ctx.fillRect(x - 13, y - 11, 26, 3);
+    ctx.fillStyle = '#c84a2a'; ctx.fillRect(x - 5, y - 20, 10, 6);
+  }
+  if (cracked) { ctx.strokeStyle = '#1a0d22'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 6, y - 26); ctx.lineTo(x + 2, y - 16); ctx.lineTo(x - 3, y - 8); ctx.stroke(); }
+}
+// Cajero automático del bonus
+function drawATM(ctx, a, t) {
+  const x = a.x + (a.shakeT > 0 ? Math.sin(a.shakeT * 3) * 3 : 0), y = groundY(a.z), k = a.hp / a.maxHp;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(a.x, y + 2, 44, 7, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = a.broken ? '#4a4a52' : '#d8d0e8'; ctx.fillRect(x - 36, y - 120, 72, 120);
+  ctx.fillStyle = '#2a2440'; ctx.fillRect(x - 36, y - 120, 72, 16);
+  comicText(ctx, a.broken ? 'X_X' : '€ 24H', x, y - 112, 8, a.broken ? '#ff5b7a' : '#5effa0');
+  ctx.fillStyle = a.broken ? '#111' : (Math.floor(t / 6) % 2 ? '#3ff0ff' : '#ff3fb4'); ctx.fillRect(x - 24, y - 96, 48, 30);
+  if (!a.broken) txt(ctx, ['ERROR', '¿PIN?', '$$$$', '404'][Math.floor(t / 20) % 4], x, y - 81, 6, '#120a24', 'center', false);
+  ctx.fillStyle = '#8a80a0'; for (let i = 0; i < 9; i++) ctx.fillRect(x - 15 + (i % 3) * 11, y - 58 + Math.floor(i / 3) * 8, 8, 5);
+  ctx.fillStyle = '#120a24'; ctx.fillRect(x - 20, y - 26, 40, 5);
+  if (k < 0.66) { ctx.strokeStyle = '#120a24'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 30, y - 100); ctx.lineTo(x - 10, y - 70); ctx.lineTo(x - 22, y - 40); ctx.stroke(); }
+  if (k < 0.33) { ctx.beginPath(); ctx.moveTo(x + 30, y - 110); ctx.lineTo(x + 12, y - 60); ctx.lineTo(x + 26, y - 20); ctx.stroke(); }
+}

@@ -184,8 +184,16 @@ class Calle {
     this.game = game; this.frame = 0;
     const ch = CHARS[idx];
     this.player = new Brawler(this, ch, { player: true, hp: ch.stats.hp, x: 120, z: 56, ctrl: game.ctrls[0] });
-    this.lives = 2; this.score = 0; this.meter = 0;
+    this.lives = 2; this.score = 0; this.meter = 0; this.nextLife = 50000;
     game.f1 = this.player; game.f2 = null;
+    // golpes con arma (escala de los protagonistas) y ataque hacia atrás
+    const pl = this.player, ls = ch.look.scale;
+    for (const [k, w] of Object.entries(CALLE_WEAPONS)) {
+      const m = Object.assign({ id: 'w_' + k, kind: 'normal', name: null }, w.move);
+      if (m.hb) m.hb = { x: m.hb.x * ls, y: m.hb.y * ls, w: m.hb.w * ls, h: m.hb.h * ls };
+      pl.moves['w_' + k] = m;
+    }
+    pl.moves.back = Object.assign({}, pl.moves.sk, { id: 'back', dmg: 46, knockdown: true, launch: { vx: 3, vy: 6 }, cancel: null });
     for (const st of CALLE_STAGES) StageArt.load(st.id);
     this.startStage(+(PARAMS.get('fase') || 1) - 1);
   }
@@ -196,6 +204,9 @@ class Calle {
     st.bossX = st.waves[st.waves.length - 1].at * st.len;
     this.camX = 0; this.lockX = null; this.waveI = 0; this.queue = []; this.foes = []; this.engaged = []; this.shots = [];
     this.items = st.items.map(it => ({ x: it.at * st.len, z: it.z, kind: it.kind, taken: false }));
+    const kinds = CALLE_PROPS[st.theme] || CALLE_PROPS.playa;
+    this.props = (st.props || []).map((pr, i) => ({ x: pr.at * st.len, z: pr.z, drop: pr.drop, kind: kinds[i % kinds.length], hp: 2, hitBy: -1, shakeT: 0 }));
+    this.time = 99 * 60; this.atm = null;
     this.phase = 'intro'; this.pt = 0; this.hitstop = 0; this.shakeT = 0; this.shakeA = 0;
     this.foeHud = null; this.superFx = 0; this.nextId = 1; this.beam = null; this.goT = 0; this.bossIntro = 0;
     const p = this.player;
@@ -215,7 +226,14 @@ class Calle {
     if (this.phase === 'ending') { if (this.pt > 120 && this.game.menuInput().ok) { Audio8.music('menu'); this.game.go('menu'); } return; }
     if (this.hitstop > 0) { this.hitstop--; return; }
     const p = this.player;
+    if (this.phase === 'bonus') return this.updBonus();
     if (this.phase === 'intro' && this.pt >= 90) { this.phase = 'play'; this.pt = 0; }
+    // tiempo por tramo: se recarga al limpiar cada oleada; si llega a cero, se pierde una vida
+    if (this.phase === 'play' && !this.bossIntro && p.hp > 0 && --this.time <= 0) {
+      this.time = 99 * 60; p.hp = 0; Object.assign(p, { state: 'launched', vy: 5, y: 0.5, vx: -2 * p.facing, move: null, held: null });
+      this.game.fx.word(p.x, groundY(p.z) - p.hpx, '¡TIEMPO!', '#ff5b7a', 14); Audio8.play('bell');
+    }
+    while (this.score >= this.nextLife) { this.nextLife += 50000; this.lives++; Audio8.play('coin'); this.game.fx.word(p.x, groundY(p.z) - p.hpx - 20, '¡VIDA EXTRA!', '#5effa0', 12); }
     if (this.phase !== 'clear' && this.pt > (this.phase === 'intro' ? 40 : 0)) this.updPlayer();
     this.spawnQueue();
     this.pickEngaged();
@@ -228,6 +246,7 @@ class Calle {
     this.resolveHits();
     this.updShots();
     this.bowling();
+    this.hitProps();
     this.pickItems();
     this.cleanup();
     this.updCamera();
@@ -239,7 +258,7 @@ class Calle {
     const p = this.player;
     if (this.pt === 60) { p.state = 'win'; p.t = 0; p.move = null; Audio8.music('win'); Audio8.say('Fase superada'); }
     if (this.pt > 200 && this.game.menuInput().ok) {
-      if (this.stageI + 1 < CALLE_STAGES.length) this.startStage(this.stageI + 1);
+      if (this.stageI + 1 < CALLE_STAGES.length) this.startBonus();
       else { this.phase = 'ending'; this.pt = 0; Audio8.say('¡Málaga está a salvo!'); }
     }
   }
@@ -261,13 +280,16 @@ class Calle {
         this.callout(p.move.name, p);
         return;
       }
-      if (c.buffered('k', 4)) {
+      if (c.buffered('k', 4) && !c.buffered('p', 3) && c.bufK >= 2) {
         c.consume('k');
         const dx = (h.right ? 1 : 0) - (h.left ? 1 : 0), dz = (h.down ? 1 : 0) - (h.up ? 1 : 0);
         if (dx) p.facing = dx;
         Object.assign(p, { state: 'jump', t: 0, vy: p.ch.stats.jumpV * 0.82, y: 0.1, vx: dx * p.ch.stats.jumpX * 0.9, vz: dz * 1.3, airUsed: false });
         Audio8.play('jump'); return;
       }
+      // ataque hacia atrás: P y K a la vez (como en los clásicos, para salir de un rodeo)
+      if (c.buffered('p', 3) && c.buffered('k', 3)) { c.consume('p'); c.consume('k'); p.facing = -p.facing; p.startMove('back'); p.special = false; return; }
+      if (c.buffered('p', 4) && p.weapon) { c.consume('p'); this.swing(); return; }
       if (c.buffered('p', 4)) { c.consume('p'); this.punch(this.frame - p.lastConnect < 26 ? p.chain + 1 : 0); return; }
       const dx = (h.right ? 1 : 0) - (h.left ? 1 : 0), dz = (h.down ? 1 : 0) - (h.up ? 1 : 0);
       p.vx = dx * p.ch.stats.walkF * 0.8; p.vz = dz * 1.6;
@@ -326,6 +348,64 @@ class Calle {
     if (c.buffered('k', 4)) { c.consume('k'); release(); return; }
     if (p.grabT > 110) release();
   }
+  // Arma: golpe propio; el móvil se lanza. Cada golpe gasta un uso
+  swing() {
+    const p = this.player, w = CALLE_WEAPONS[p.weapon.kind];
+    p.startMove('w_' + p.weapon.kind); p.special = false;
+    if (w.throw) {
+      this.shots.push({ x: p.x + p.facing * 20, z: p.z, y: 0.6 * p.hpx, vx: 7 * p.facing, vy: 0, arc: false, kind: 'movil', dmg: 60, owner: p, mine: true, life: 120, rot: 0 });
+      p.weapon = null; return;
+    }
+    if (--p.weapon.uses <= 0) { this.game.fx.word(p.x, groundY(p.z) - p.hpx, '¡SE ROMPIÓ!', '#bbb', 8); p.weapon = null; }
+  }
+  dropWeapon() {
+    const p = this.player;
+    if (!p.weapon) return;
+    this.items.push({ x: p.x - p.facing * 30, z: p.z, kind: p.weapon.kind, uses: p.weapon.uses, taken: false, cool: 60 });
+    p.weapon = null;
+  }
+  // Objetos rompibles: aguantan dos golpes y sueltan lo que esconden
+  hitProps() {
+    const p = this.player, hb = p.hitbox();
+    for (const pr of this.props) {
+      if (pr.shakeT > 0) pr.shakeT--;
+      if (pr.hp <= 0 || !hb || Math.abs(pr.z - p.z) > 16 || pr.hitBy === p.serial) continue;
+      if (hb.r < pr.x - 16 || hb.l > pr.x + 16) continue;
+      pr.hitBy = p.serial; pr.hp--; pr.shakeT = 10; p.hasHit = true;
+      Audio8.play(pr.hp > 0 ? 'block' : 'hitHeavy');
+      this.game.fx.spark(pr.x, groundY(pr.z) - 22, '#ffe36e', pr.hp > 0 ? 5 : 12);
+      if (pr.hp <= 0) { this.score += 200; this.shake(3); if (pr.drop) this.items.push({ x: pr.x, z: pr.z, kind: pr.drop, taken: false }); }
+    }
+  }
+  // Bonus entre fases: el cajero automático se ha vuelto loco y escupe billetes. 30 segundos para reventarlo
+  startBonus() {
+    const p = this.player;
+    this.phase = 'bonus'; this.pt = 0; this.foes = []; this.shots = []; this.items = []; this.props = [];
+    this.camX = 0; this.lockX = 0;
+    this.atm = { x: 400, z: 40, hp: 40, maxHp: 40, hitBy: -1, shakeT: 0, broken: false };
+    this.bonusT = 30 * 60; this.bonusScore = 0; this.donePt = 0;
+    Object.assign(p, { x: 200, z: 44, state: 'idle', move: null, t: 0, weapon: null });
+    Audio8.music('fight'); Audio8.say('¡Bonus!');
+  }
+  updBonus() {
+    const p = this.player, a = this.atm;
+    if (this.pt > 60 && !a.broken && this.bonusT > 0) { this.bonusT--; this.updPlayer(); }
+    p.update(); p.physics(); updatePose(p);
+    p.x = clamp(p.x, 20, W - 20);
+    if (a.shakeT > 0) a.shakeT--;
+    const hb = p.hitbox();
+    if (!a.broken && hb && Math.abs(a.z - p.z) < 20 && a.hitBy !== p.serial && hb.r > a.x - 34 && hb.l < a.x + 34) {
+      a.hitBy = p.serial; a.hp -= Math.max(1, Math.round((p.move.dmg || 40) / 30)); a.shakeT = 8; p.hasHit = true; p.lastConnect = this.frame;
+      this.bonusScore += 300; this.score += 300; Audio8.play('hitLight');
+      this.game.fx.spark(a.x - p.facing * 20, groundY(a.z) - 50, '#ffe36e', 6);
+      this.game.fx.icons(a.x, groundY(a.z) - 70, 'euro', 3);
+      if (a.hp <= 0) { a.broken = true; this.bonusScore += 10000; this.score += 10000; this.pt = 0; this.shake(10); this.game.flashT = 10; Audio8.play('ko'); this.game.fx.icons(a.x, groundY(a.z) - 60, 'euro', 20); }
+    }
+    while (this.score >= this.nextLife) { this.nextLife += 50000; this.lives++; Audio8.play('coin'); }
+    const done = a.broken ? this.pt > 150 : this.bonusT <= 0 && this.pt > 60;
+    if (done && this.game.menuInput().ok || done && this.donePt && this.pt - this.donePt > 300) { this.lockX = null; this.atm = null; this.startStage(this.stageI + 1); }
+    if (done && !this.donePt) this.donePt = this.pt;
+  }
   startSuper() {
     const p = this.player;
     p.startMove('super'); p.special = false; p.invuln = 60;
@@ -361,6 +441,11 @@ class Calle {
       if (s.arc) { s.vy -= 0.16; s.y += s.vy; if (s.y <= 0) { s.life = 0; this.game.fx.spark(s.x, groundY(s.z), '#ccc', 5, 0.6); } }
       if (s.x < this.camX - 60 || s.x > this.camX + W + 60) s.life = 0;
       if (s.life <= 0) continue;
+      if (s.mine) { // móvil lanzado por el jugador
+        const e = this.foes.find(e => { const hu = e.hurtbox(); return hu && Math.abs(e.z - s.z) < 14 && s.x > hu.l - 6 && s.x < hu.r + 6; });
+        if (e) { s.life = 0; this.applyHit(p, e, { dmg: s.dmg, knockdown: true, launch: { vx: 3, vy: 6 } }, { x: s.x, y: s.y, dir: Math.sign(s.vx) }); }
+        continue;
+      }
       // el jugador puede romper los objetos de un golpe
       if (phb && Math.abs(s.z - p.z) < 14 && s.x > phb.l && s.x < phb.r && s.y > phb.b - 10 && s.y < phb.t + 10) {
         s.life = 0; this.score += 50; this.game.fx.spark(s.x, groundY(s.z) - s.y, '#fff', 8); Audio8.play('block'); continue;
@@ -447,7 +532,7 @@ class Calle {
       if (wave.boss) { Audio8.say('¡Cuidado!'); this.bossIntro = 140; this.bossName = ROSTER[wave.foes[0]].name; }
     }
     if (this.lockX !== null && !this.queue.length && !this.foes.length) {
-      this.lockX = null; this.waveI++;
+      this.lockX = null; this.waveI++; this.time = 99 * 60;
       if (this.waveI >= this.stage.waves.length) { this.phase = 'clear'; this.pt = 0; Audio8.play('bell'); }
       else { this.goT = 180; Audio8.play('coin'); }
     }
@@ -589,7 +674,7 @@ class Calle {
     const dmg = Math.max(1, Math.round(m.dmg * pow));
     d.hp -= dmg; d.flash = 5; d.t = 0;
     d.recent = this.frame - d.lastHurtF < 45 ? d.recent + 1 : 1; d.lastHurtF = this.frame;
-    if (toPlayer) { this.meter = Math.min(200, this.meter + dmg * 0.04); a.lastConnect = this.frame; }
+    if (toPlayer) { this.meter = Math.min(200, this.meter + dmg * 0.04); a.lastConnect = this.frame; if (knockMoveEarly(m) || d.hp <= 0) this.dropWeapon(); }
     else {
       this.score += dmg * 10; this.meter = Math.min(200, this.meter + dmg * 0.1 + (m.kind === 'super' ? 0 : 1));
       if (a === this.player) a.lastConnect = this.frame;
@@ -653,6 +738,13 @@ class Calle {
     for (const it of this.items) {
       if (it.taken || Math.abs(it.x - p.x) > 26 || Math.abs(it.z - p.z) > 14) continue;
       const def = CALLE_ITEMS[it.kind];
+      if (def.weapon) {
+        if (p.weapon || (it.cool && it.cool-- > 0)) continue;
+        const w = CALLE_WEAPONS[it.kind];
+        it.taken = true; p.weapon = { kind: it.kind, uses: it.uses || w.uses };
+        Audio8.play('select'); this.game.fx.word(it.x, groundY(it.z) - 40, w.name, '#9bf0ff', 9);
+        continue;
+      }
       it.taken = true; p.hp = Math.min(p.maxHp, p.hp + p.maxHp * def.hp); this.score += def.score;
       Audio8.play('coin'); this.game.fx.word(it.x, groundY(it.z) - 40, def.name, '#5effa0', 11);
     }
@@ -694,6 +786,8 @@ class Calle {
     drawStage(ctx, cx, this.frame, this.stage);
     ctx.save(); ctx.translate(-cx, 0);
     for (const it of this.items) if (!it.taken) drawItem(ctx, it, this.frame);
+    for (const pr of this.props) drawProp(ctx, pr, this.frame);
+    if (this.atm) drawATM(ctx, this.atm, this.frame);
     if (this.beam) this.drawBeam(ctx);
     const all = [this.player, ...this.foes].sort((a, b) => a.z - b.z);
     for (const b of all) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(b.x, groundY(b.z) + 1, 0.18 * b.hpx * Math.max(0.5, 1 - b.y / 200), 5, 0, 0, 7); ctx.fill(); }
@@ -707,9 +801,14 @@ class Calle {
     this.drawHUD(ctx);
   }
   drawPlayer(ctx, b) {
+    if (b.weapon && !(b.state === 'attack' && b.move && b.move.id.startsWith('w_'))) drawWeapon(ctx, b.weapon.kind, b.x - b.facing * 0.12 * b.hpx, groundY(b.z) - b.y - 0.5 * b.hpx, b.facing, 1.9);
     if (b.invuln > 0 && b.state !== 'attack' && Math.floor(this.frame / 3) % 2) ctx.globalAlpha = 0.45;
     drawFighterAt(ctx, b.look, b.x, groundY(b.z) - b.y, b.pose, b.facing, this.frame, { fighter: b, scale: b.k, flash: b.flash > 0, state: b.state });
     ctx.globalAlpha = 1;
+    if (b.state === 'attack' && b.move && b.move.id.startsWith('w_') && b.move.id !== 'w_movil') { // arma en la mano durante el golpe
+      const m = b.move, k = clamp((b.mf - 2) / (m.startup + 2), 0, 1), back = b.mf > m.startup + m.active ? clamp((b.mf - m.startup - m.active) / m.recovery, 0, 1) : 0;
+      drawWeapon(ctx, b.weapon ? b.weapon.kind : m.id.slice(2), b.x + b.facing * 0.24 * b.hpx, groundY(b.z) - b.y - 0.66 * b.hpx, b.facing, -2.2 + 2.6 * k - 1.2 * back);
+    }
     if (b.state === 'dizzy') drawDizzy(ctx, b.x, groundY(b.z) - b.hpx - 6, this.frame);
     if (b.state === 'grabbed' && Math.floor(this.frame / 10) % 2) txt(ctx, '¡MACHACA BOTONES!', b.x, groundY(b.z) - b.hpx - 16, 6, '#f4c20d');
   }
@@ -759,6 +858,19 @@ class Calle {
     if (this.meter > 100) { ctx.fillStyle = '#ff5b7a'; ctx.fillRect(50, 34, 196 * (this.meter - 100) / 100, 5); }
     txt(ctx, 'SUPER', 50, 45, 5, this.meter >= 100 ? '#5effa0' : '#8a80b0', 'left', false);
     txt(ctx, String(this.score).padStart(7, '0'), 246, 45, 6, '#fff', 'right', false);
+    if (p.weapon) txt(ctx, CALLE_WEAPONS[p.weapon.kind].name + (CALLE_WEAPONS[p.weapon.kind].throw ? '' : ' x' + p.weapon.uses), 128, 45, 5, '#9bf0ff', 'center', false);
+    if (this.phase === 'play' || this.phase === 'intro') {
+      const sec = Math.ceil(this.time / 60);
+      ctx.fillStyle = 'rgba(12,7,24,0.78)'; ctx.fillRect(W / 2 - 22, 6, 44, 24);
+      txt(ctx, String(sec).padStart(2, '0'), W / 2, 18, 11, sec <= 10 && Math.floor(this.frame / 10) % 2 ? '#ff5b7a' : '#fff');
+    }
+    if (this.phase === 'bonus') {
+      comicText(ctx, 'BONUS', W / 2, 74, 18, '#f4c20d');
+      txt(ctx, '¡EL CAJERO SE HA VUELTO LOCO! REVIÉNTALO', W / 2, 98, 7, '#fff');
+      txt(ctx, 'TIEMPO ' + Math.ceil(this.bonusT / 60) + '   ·   ' + this.bonusScore + ' PTS', W / 2, 116, 8, '#9bf0ff');
+      if (this.atm && this.atm.broken) comicText(ctx, '¡FUERA DE SERVICIO!', W / 2, 150, 16, '#5effa0');
+      else if (this.bonusT <= 0) comicText(ctx, '¡SE ACABÓ!', W / 2, 150, 16, '#ff5b7a');
+    }
     const boss = this.lockX !== null && this.foes.find(e => e.def.boss && e.hp > 0);
     const fh = this.foeHud || (boss ? { f: boss } : null);
     if (fh) {
@@ -800,6 +912,8 @@ class Calle {
 
 // Fotograma de un enemigo: con su atlas propio ('e_<id>': idle, walk, atk, skill, skill2, hit, down) o, mientras
 // no exista, con el atlas del protagonista base y la animación provisional 'ph' de cada golpe.
+function knockMoveEarly(m) { return !!(m.knockdown || m.knock || m.launch); }
+
 function thugFrame(e) {
   const own = FrameSprites.has('e_' + e.kind), set = own ? 'e_' + e.kind : e.def.base;
   const A = FrameSprites.sets[set].meta.anims;

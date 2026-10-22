@@ -3,7 +3,7 @@
 // Si un personaje no tiene atlas, o le falta una animación, se usa el rig de sprites.js.
 const FrameSprites = (() => {
   const sets = {};
-  const MOVE_ANIM = { lp: 'lp', sk: 'sk', cp: 'cp', ck: 'ck', jp: 'jp', jk: 'jk', proj: 'proj', dp: 'dp', rush: 'rush', super: 'super', remate: 'combo', super2: 'super2', ultra: 'ultra' };
+  const MOVE_ANIM = { lp: 'lp', sk: 'sk', cp: 'cp', ck: 'ck', jp: 'jp', jk: 'jk', proj: 'proj', dp: 'dp', rush: 'rush', super: 'super', remate: 'combo', super2: 'super2', ultra: 'ultra', back: 'sk', w_bate: 'lp', w_guitarra: 'combo', w_movil: 'proj' };
   // sustitutos mientras falte la hoja de una animación (el rig desentona con el arte nuevo)
   const FALLBACK = { combo: 'sk', super2: 'rush', ultra: 'super', lp: 'super2', cp: 'super2', sk: 'rush', ck: 'rush', jp: 'dp', jk: 'dp' };
   function load(onDone) {
