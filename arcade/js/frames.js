@@ -39,6 +39,30 @@ const FrameSprites = (() => {
     } catch (e) { set.alt = null; }
     return set.alt;
   }
+  // Ropa de otro color (enemigos provisionales del modo Calle): los azules del traje pasan al color pedido
+  // conservando el sombreado. Se cachea por fotograma, no por atlas entero, para no gastar memoria.
+  function tintFrame(set, fr, col) {
+    const cache = set.tints || (set.tints = {});
+    const key = col + fr.r.join(',');
+    if (key in cache) return cache[key];
+    cache[key] = null;
+    try {
+      const [sx, sy, sw, sh] = fr.r;
+      const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+      const g = c.getContext('2d'); g.drawImage(set.img, sx, sy, sw, sh, 0, 0, sw, sh);
+      const d = g.getImageData(0, 0, sw, sh), a = d.data;
+      const tr = parseInt(col.slice(1, 3), 16), tg = parseInt(col.slice(3, 5), 16), tb = parseInt(col.slice(5, 7), 16);
+      for (let i = 0; i < a.length; i += 4) {
+        if (!a[i + 3]) continue;
+        const r = a[i], gg = a[i + 1], b = a[i + 2];
+        if (b <= r + 12 || b <= gg) continue;
+        const l = Math.min(1.6, (0.3 * r + 0.59 * gg + 0.11 * b) / 70);
+        a[i] = Math.min(255, tr * l); a[i + 1] = Math.min(255, tg * l); a[i + 2] = Math.min(255, tb * l);
+      }
+      g.putImageData(d, 0, 0); cache[key] = c;
+    } catch (e) { cache[key] = null; }
+    return cache[key];
+  }
   const pick = (arr, k) => arr[Math.max(0, Math.min(arr.length - 1, k))];
   // Devuelve [animación, índice] para un luchador en combate o una petición directa {anim, t}
   function choose(set, f, opts) {
@@ -61,11 +85,11 @@ const FrameSprites = (() => {
     const has = an => !!A[an];
     switch (st) {
       case 'walk': {
-        const fwd = Math.sign(f.vx) === f.facing;
+        const fwd = !f.vx || Math.sign(f.vx) === f.facing;
         const an = fwd || !has('walk_b') ? 'walk_f' : 'walk_b';
         if (!has(an)) return loop('idle', f.t);
         const n = A[an].frames.length;
-        return [an, ((Math.floor(Math.abs(f.x) / 9) % n) + n) % n];
+        return [an, ((Math.floor(Math.abs(f.walkX !== undefined ? f.walkX : f.x) / 9) % n) + n) % n];
       }
       case 'crouch': if (f.guarding && has('block_crouch')) return ['block_crouch', 0]; if (has('crouch')) return ['crouch', Math.min(1, f.t >> 2)]; if (has('block_crouch')) return ['block_crouch', 0]; break;
       case 'prejump': case 'land': if (has('jump')) return ['jump', 0]; if (has('dp')) return ['dp', 0]; break;
@@ -98,10 +122,12 @@ const FrameSprites = (() => {
     ctx.save();
     ctx.translate(x, gy); ctx.scale(facing * k, k);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    let img = set.img;
-    if (opts.alt) { img = altImage(set) || set.img; if (img === set.img && 'filter' in ctx) ctx.filter = 'hue-rotate(150deg) saturate(1.2)'; }
-    ctx.drawImage(img, sx, sy, sw, sh, -fr.ax, -fr.ay, sw, sh);
-    if (opts.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.45; ctx.drawImage(img, sx, sy, sw, sh, -fr.ax, -fr.ay, sw, sh); }
+    let img = set.img, rx = sx, ry = sy;
+    const tinted = opts.tint && tintFrame(set, fr, opts.tint);
+    if (tinted) { img = tinted; rx = 0; ry = 0; }
+    else if (opts.alt) { img = altImage(set) || set.img; if (img === set.img && 'filter' in ctx) ctx.filter = 'hue-rotate(150deg) saturate(1.2)'; }
+    ctx.drawImage(img, rx, ry, sw, sh, -fr.ax, -fr.ay, sw, sh);
+    if (opts.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.45; ctx.drawImage(img, rx, ry, sw, sh, -fr.ax, -fr.ay, sw, sh); }
     ctx.restore();
     return true;
   }

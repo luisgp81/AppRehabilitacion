@@ -2,7 +2,7 @@
 
 Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e217ca11-w57jdl`. Todo el juego vive en `arcade/`.
 
-## Hecho y probado (20 pruebas del juego + prueba del pipeline, todas en verde)
+## Hecho y probado (21 pruebas del juego + prueba del pipeline, todas en verde)
 
 **Juego jugable en el navegador** (`arcade/index.html`)
 - 3 luchadores: Luis, Juan Carlos y Sebas, con sprites recortados de la ilustración de referencia y animados con rig esquelético (WebGL, ~1 ms/frame; modo Canvas 2D de respaldo).
@@ -21,6 +21,15 @@ Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e21
 **Arte nuevo de Luis (traje), completo**: las 10 hojas de ChatGPT (LUIS-H01…H10), 29 animaciones y 162 fotogramas.
 El recorte separa las figuras por manchas conectadas o, si se tocan, con un corte serpenteante que rodea brazos y piernas.
 En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la piel y el resto de colores.
+
+**Modo Calle (beat 'em up), fase 1** (`js/calle.js`, menú → MODO CALLE)
+- 1 jugador con cualquiera de los tres: se mueve en profundidad, combo de puño (jab, jab, patada, remate que lanza), salto y patada voladora.
+  SP hace un especial: adelante, la embestida; quieto, el antiaéreo, que golpea a los dos lados y cuesta un poco de vida si conecta. Con la barra llena, SP lanza un super que pega a toda la pantalla.
+- Fase 1 provisional: paseo marítimo de Málaga dibujado por código, 5 oleadas y un jefe (El Director de Zona).
+  La cámara se bloquea en cada oleada; como mucho atacan dos enemigos a la vez; los enemigos lanzados arrollan a otros.
+  Hay espetos y camperos que curan, 3 vidas, continuar y puntuación.
+- Los enemigos son provisionales: los protagonistas con la ropa recoloreada (macarra, yuppie, heavy y jefe). Tienen derechos limpios: arquetipos de los 80 y 90, sin personajes reconocibles.
+- Siguiente (fase 2): arte propio de enemigos, escenarios panorámicos y agarres (prompts en el Taller). Fase 3: más fases, 2 jugadores cooperativos y pulido para móvil.
 
 ## Pendiente
 
@@ -46,7 +55,7 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 ## Comprobar que todo sigue bien
 
 ```bash
-node arcade/tests/game.test.cjs       # juego (20 pruebas)
+node arcade/tests/game.test.cjs       # juego (21 pruebas)
 node arcade/tests/pipeline.test.cjs   # pipeline de fotogramas
 npx http-server -p 8080 .             # y abrir http://localhost:8080/arcade/
 ```

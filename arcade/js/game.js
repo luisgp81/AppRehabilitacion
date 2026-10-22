@@ -32,6 +32,7 @@ function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringi
 
 const MODES = [
   { id: 'arcade', label: 'ARCADE · 1 JUGADOR', desc: 'Derrota a los otros dos y llévate el bonus.' },
+  { id: 'calle', label: 'MODO CALLE · BEAT EM UP', desc: 'Limpia el paseo marítimo de macarras. Prueba de la fase 1.' },
   { id: 'versus', label: 'VERSUS · 2 JUGADORES', desc: 'Mismo teclado o mandos. Que gane el mejor.' },
   { id: 'cpu', label: 'CPU CONTRA CPU', desc: 'Siéntate, palomitas y mira.' },
   { id: 'training', label: 'ENTRENAMIENTO', desc: 'Rival quieto, vida y super infinitos.' },
@@ -132,7 +133,7 @@ class Game {
     this.drawDimStage(ctx, 0.62);
     comicText(ctx, 'SELECCIÓN ARCADE', W / 2, 36, 22, '#f4c20d');
     MODES.forEach((m, i) => {
-      const y = 82 + i * 36, sel = i === this.menuIdx;
+      const y = 76 + i * 32, sel = i === this.menuIdx;
       ctx.fillStyle = sel ? 'rgba(232,66,58,0.9)' : 'rgba(20,12,40,0.85)';
       ctx.fillRect(150, y - 14, 340, 28);
       ctx.strokeStyle = sel ? '#f4c20d' : '#4b3a78'; ctx.lineWidth = 2; ctx.strokeRect(150, y - 14, 340, 28);
@@ -251,6 +252,7 @@ class Game {
       if (i.ok) {
         s.done = true; Audio8.play('confirm'); Audio8.say(CHARS[s.idx].name.toLowerCase());
         if (this.mode === 'arcade') { this.beginArcade(); return; }
+        if (this.mode === 'calle') { this.beginCalle(s.idx); return; }
         if (this.selStep === 0) { this.selStep = 1; this.sel[1].idx = (s.idx + 1) % 3; }
         else { this.beginMatch(this.sel[0].idx, this.sel[1].idx); return; }
       }
@@ -267,11 +269,11 @@ class Game {
   }
   draw_select(ctx) {
     this.drawDimStage(ctx, 0.7);
-    const titles = { arcade: 'ARCADE', versus: 'VERSUS', cpu: 'CPU VS CPU', training: 'ENTRENAMIENTO' };
+    const titles = { calle: 'MODO CALLE', arcade: 'ARCADE', versus: 'VERSUS', cpu: 'CPU VS CPU', training: 'ENTRENAMIENTO' };
     comicText(ctx, 'ELIGE LUCHADOR', W / 2, 24, 18, '#f4c20d');
     txt(ctx, titles[this.mode], W / 2, 46, 8, '#9bf0ff', 'center', false);
     const solo = this.mode !== 'versus';
-    const lbl = solo && this.mode !== 'arcade' ? (this.selStep === 0 ? (this.mode === 'training' ? 'TÚ' : 'CPU 1') : (this.mode === 'training' ? 'SPARRING' : 'CPU 2')) : null;
+    const lbl = solo && this.mode !== 'arcade' && this.mode !== 'calle' ? (this.selStep === 0 ? (this.mode === 'training' ? 'TÚ' : 'CPU 1') : (this.mode === 'training' ? 'SPARRING' : 'CPU 2')) : null;
     // tarjetas
     CHARS.forEach((ch, k) => {
       const x = 200 + k * 80, y = 262;
@@ -282,7 +284,7 @@ class Game {
     });
     this.sel.forEach((s, side) => {
       if (solo && side !== this.selStep && !s.done) return;
-      if (this.mode === 'arcade' && side === 1) return;
+      if ((this.mode === 'arcade' || this.mode === 'calle') && side === 1) return;
       const x = 200 + s.idx * 80, y = 262;
       const col = side === 0 ? '#e8423a' : '#2f7bf0';
       if (!s.done || Math.floor(this.frame / 6) % 2 || true) { ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.strokeRect(x - 36 + side * 2, y - 36 + side * 2, 72 - side * 4, 72 - side * 4); }
@@ -303,6 +305,15 @@ class Game {
     if (!solo) txt(ctx, 'P1: A/D + J · P2: FLECHAS + NUM1 o ,', W / 2, 176, 7, '#9bf0ff', 'center', false);
     txt(ctx, 'IZQ/DER ELEGIR · J/ENTER CONFIRMAR · ESC VOLVER', W / 2, 348, 6, '#bbb', 'center', false);
   }
+
+  // ── MODO CALLE (beat 'em up, js/calle.js) ──
+  beginCalle(idx) { this.calle = new Calle(this, idx); Audio8.music('fight'); this.go('calle'); }
+  upd_calle() {
+    const c = this.calle;
+    if ((this.ctrls[0].pressed.start || this.menuInput().esc) && c.phase !== 'over' && c.phase !== 'clear') { this.paused = { idx: 0 }; this.pauseFrom = 'calle'; Audio8.play('select'); this.go('pause'); return; }
+    c.update();
+  }
+  draw_calle(ctx) { this.calle.draw(ctx); }
 
   beginArcade() {
     const me = this.sel[0].idx;
@@ -468,7 +479,7 @@ class Game {
   upd_fight() {
     const f1 = this.f1, f2 = this.f2, i = this.menuInput();
     const startP = this.ctrls[0].pressed.start || this.ctrls[1].pressed.start || i.esc;
-    if (startP && this.phase !== 'end') { this.paused = { idx: 0 }; Audio8.play('select'); this.go('pause'); return; }
+    if (startP && this.phase !== 'end') { this.paused = { idx: 0 }; this.pauseFrom = 'fight'; Audio8.play('select'); this.go('pause'); return; }
     this.pt++;
     if (this.freezeT > 0) { this.freezeT--; updatePose(f1); updatePose(f2); return; }
     if (this.ultra) { this.updUltra(); updatePose(f1); updatePose(f2); for (const f of [f1, f2]) { if (f.dispHp > f.hp) f.dispHp = Math.max(f.hp, f.dispHp - 8); } return; }
@@ -841,7 +852,7 @@ class Game {
     const i = this.menuInput(), rows = this.pauseRows();
     if (i.up) { this.paused.idx = (this.paused.idx + rows.length - 1) % rows.length; Audio8.play('select'); }
     if (i.down) { this.paused.idx = (this.paused.idx + 1) % rows.length; Audio8.play('select'); }
-    const resume = () => { this.screen = 'fight'; };
+    const resume = () => { this.screen = this.pauseFrom || 'fight'; };
     if (i.esc || (this.ctrls[0].pressed.start && this.st > 2)) { resume(); return; }
     if (i.ok) {
       Audio8.play('confirm');
@@ -853,7 +864,7 @@ class Game {
     }
   }
   draw_pause(ctx) {
-    this.draw_fight(ctx);
+    this['draw_' + (this.pauseFrom || 'fight')](ctx);
     ctx.fillStyle = 'rgba(5,0,20,0.7)'; ctx.fillRect(0, 0, W, H);
     comicText(ctx, 'PAUSA', W / 2, 90, 26, '#f4c20d');
     this.pauseRows().forEach((r, i) => {

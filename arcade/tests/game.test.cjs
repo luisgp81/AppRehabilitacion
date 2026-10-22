@@ -136,7 +136,7 @@ async function main() {
   await test('Menús: opciones (persisten), controles (4 páginas) y volver', async open => {
     const p = await open();
     await p.step(5); await p.tap('Enter');
-    for (let i = 0; i < 4; i++) await p.tap('KeyS');
+    for (let i = 0; i < 5; i++) await p.tap('KeyS');
     await p.tap('Enter');
     assert(await p.g(() => SA.game.screen) === 'options', 'no entra en opciones');
     await p.tap('KeyD'); // dificultad normal → difícil
@@ -157,7 +157,7 @@ async function main() {
 
   await test('Entrenamiento: andar, puño conecta y el sparring recibe daño', async open => {
     const p = await open();
-    await toFight(p, 3, [0, 1]); // Luis vs Juan Carlos
+    await toFight(p, 4, [0, 1]); // Luis vs Juan Carlos
     const st0 = await p.g(() => ({ ph: SA.game.phase, x: SA.game.f1.x, mode: SA.game.mode, n2: SA.game.f2.ch.id }));
     assert(st0.ph === 'fight' && st0.mode === 'training' && st0.n2 === 'jc', JSON.stringify(st0));
     await p.hold(['KeyD'], 35);
@@ -172,7 +172,7 @@ async function main() {
 
   await test('Especial con botón SP: proyectil que viaja e impacta', async open => {
     const p = await open();
-    await toFight(p, 3, [0, 0]);
+    await toFight(p, 4, [0, 0]);
     await p.tap('KeyL', 2, 14);
     const pr = await p.g(() => SA.game.projectiles.map(x => ({ fx: x.fx, x: x.x })));
     assert(pr.length === 1 && pr[0].fx === 'euro', 'sin proyectil ' + JSON.stringify(pr));
@@ -185,7 +185,7 @@ async function main() {
 
   await test('Inputs clásicos: 236+P proyectil y 623+P antiaéreo', async open => {
     const p = await open();
-    await toFight(p, 3, [2, 0]); // Sebas vs Luis
+    await toFight(p, 4, [2, 0]); // Sebas vs Luis
     const k = p.keyboard;
     await k.down('KeyS'); await p.step(2); await k.down('KeyD'); await p.step(2); await k.up('KeyS'); await p.step(2);
     await p.tap('KeyJ', 1, 1); await k.up('KeyD'); await p.step(14);
@@ -203,7 +203,7 @@ async function main() {
 
   await test('Combo: puño cancelado en embestida suma 2+ golpes', async open => {
     const p = await open();
-    await toFight(p, 3, [1, 0]); // JC vs Luis
+    await toFight(p, 4, [1, 0]); // JC vs Luis
     await p.hold(['KeyD'], 40);
     await p.keyboard.down('KeyJ'); await p.step(1); await p.keyboard.up('KeyJ'); await p.step(4);
     await p.keyboard.down('KeyD'); await p.keyboard.down('KeyL'); await p.step(2); await p.keyboard.up('KeyL'); await p.keyboard.up('KeyD');
@@ -215,7 +215,7 @@ async function main() {
 
   await test('Super (SP+abajo con barra llena): cinemática y multi-impacto', async open => {
     const p = await open();
-    await toFight(p, 3, [0, 1]);
+    await toFight(p, 4, [0, 1]);
     await p.hold(['KeyD'], 20);
     await p.keyboard.down('KeyS'); await p.step(1); await p.tap('KeyL', 2, 0); await p.keyboard.up('KeyS');
     const fr = await p.g(() => ({ fz: SA.game.freezeT, m: SA.game.f1.move && SA.game.f1.move.id }));
@@ -230,7 +230,7 @@ async function main() {
 
   await test('Combo arcade: puño, puño, patada → remate que lanza (3+ golpes)', async open => {
     const p = await open();
-    await toFight(p, 3, [0, 1]);
+    await toFight(p, 4, [0, 1]);
     await p.hold(['KeyD'], 34);
     const seen = new Set();
     const watch = async n => { for (let i = 0; i < n; i++) { await p.step(1); const m = await p.g(() => SA.game.f1.move && SA.game.f1.move.id); if (m) seen.add(m); } };
@@ -245,7 +245,7 @@ async function main() {
 
   await test('Super 2 (K+SP): embestida multigolpe que gasta 1 barra', async open => {
     const p = await open();
-    await toFight(p, 3, [2, 0]);
+    await toFight(p, 4, [2, 0]);
     await p.hold(['KeyD'], 20);
     await p.keyboard.down('KeyK'); await p.keyboard.down('KeyL'); await p.step(2); await p.keyboard.up('KeyK'); await p.keyboard.up('KeyL');
     const st = await p.g(() => ({ m: SA.game.f1.move && SA.game.f1.move.id, supers: SA.game.f1.stats.supers }));
@@ -258,7 +258,7 @@ async function main() {
 
   await test('Golpe Final (P+K+SP): cinemática de 9 impactos y KO especial', async open => {
     const p = await open();
-    await toFight(p, 3, [1, 2]);
+    await toFight(p, 4, [1, 2]);
     await p.hold(['KeyD'], 30);
     for (const k of ['KeyJ', 'KeyK', 'KeyL']) await p.keyboard.down(k);
     await p.step(2); for (const k of ['KeyJ', 'KeyK', 'KeyL']) await p.keyboard.up(k);
@@ -274,7 +274,7 @@ async function main() {
     await p.close();
     // KO con golpe final en versus
     const q = await open();
-    await toFight(q, 1, []);
+    await toFight(q, 2, []);
     await q.tap('KeyJ'); await q.tap('Numpad1'); await q.step(40); await waitFight(q);
     await q.g(() => { const g = SA.game; g.f1.meter = 200; g.f2.hp = 150; g.f2.x = g.f1.x + 90; });
     for (const k of ['KeyJ', 'KeyK', 'KeyL']) await q.keyboard.down(k);
@@ -290,7 +290,7 @@ async function main() {
 
   await test('Versus 2P: bloqueo alto, barrido rompe guardia de pie, guardia agachada lo para', async open => {
     const p = await open();
-    await toFight(p, 1, []); // versus: cada jugador confirma con su botón
+    await toFight(p, 2, []); // versus: cada jugador confirma con su botón
     await p.tap('KeyJ'); await p.tap('Numpad1'); await p.step(40);
     await waitFight(p);
     assert(await p.g(() => SA.game.screen === 'fight' && SA.game.phase === 'fight' && !SA.game.ai[0] && !SA.game.ai[1]), 'versus no arranca sin IA');
@@ -315,7 +315,7 @@ async function main() {
 
   await test('Pausa: ESC pausa y reanuda', async open => {
     const p = await open();
-    await toFight(p, 3, [0, 0]);
+    await toFight(p, 4, [0, 0]);
     await p.tap('Escape');
     assert(await p.g(() => SA.game.screen) === 'pause', 'no pausa');
     await p.shot('t09-pause');
@@ -328,7 +328,7 @@ async function main() {
     await test(`CPU vs CPU (${diff}): el combate termina con ganador y sin errores`, async open => {
       const p = await open();
       await p.evaluate(d => { SA.game.settings.difficulty = d; }, diff);
-      await toFight(p, 2, [diff === 'hard' ? 2 : 0, diff === 'easy' ? 1 : 2]);
+      await toFight(p, 3, [diff === 'hard' ? 2 : 0, diff === 'easy' ? 1 : 2]);
       let screen, frames = 0, sawSpecial = false;
       while (frames < 60 * 60 * 6) {
         await p.step(300); frames += 300;
@@ -384,6 +384,30 @@ async function main() {
     await p.evaluate(() => { __pad.buttons[0].pressed = false; });
     await p.step(2);
     assert(await p.g(() => SA.game.screen) === 'menu', 'el mando no confirma');
+    await p.close();
+  });
+
+  await test('Modo Calle: entra desde el menú, llegan enemigos, el combo pega y la pausa funciona', async open => {
+    const p = await open();
+    await toFight(p, 1, []);
+    await p.tap('KeyJ'); // Luis
+    assert(await p.g(() => SA.game.screen) === 'calle', 'no entra en el modo Calle');
+    await p.step(100);
+    await p.hold(['KeyD'], 240); // avanza hasta la primera oleada
+    await p.step(120);
+    const n = await p.g(() => SA.game.calle.foes.length);
+    assert(n >= 1, 'no aparecen enemigos');
+    // coloca a un enemigo delante y encadena puños
+    await p.g(() => { const c = SA.game.calle, pl = c.player, e = c.foes[0]; e.entered = true; e.x = pl.x + 50; e.z = pl.z; e.cool = 999; pl.facing = 1; });
+    for (let i = 0; i < 4; i++) await p.tap('KeyJ', 2, 10);
+    const st = await p.g(() => ({ score: SA.game.calle.score, hp: SA.game.calle.foes[0] && SA.game.calle.foes[0].hp }));
+    assert(st.score > 0, 'el combo no conecta');
+    await p.shot('t20-calle');
+    await p.tap('Enter');
+    assert(await p.g(() => SA.game.screen) === 'pause', 'START no pausa');
+    await p.tap('Enter');
+    assert(await p.g(() => SA.game.screen) === 'calle', 'no vuelve de la pausa');
+    assert(!p.errs.length && !(await p.g(() => SA.game.errors.length)), 'errores: ' + p.errs.join(' | '));
     await p.close();
   });
 
