@@ -92,7 +92,7 @@ const FrameSprites = (() => {
         return [an, ((Math.floor(Math.abs(f.walkX !== undefined ? f.walkX : f.x) / 9) % n) + n) % n];
       }
       case 'crouch': if (f.guarding && has('block_crouch')) return ['block_crouch', 0]; if (has('crouch')) return ['crouch', Math.min(1, f.t >> 2)]; if (has('block_crouch')) return ['block_crouch', 0]; break;
-      case 'prejump': case 'land': if (has('jump')) return ['jump', 0]; if (has('dp')) return ['dp', 0]; break;
+      case 'prejump': case 'land': if (f.threw && has('throw')) return ['throw', Math.min(A.throw.frames.length - 1, Math.floor(f.t / 3))]; if (has('jump')) return ['jump', 0]; if (has('dp')) return ['dp', 0]; break;
       case 'jump': if (has('jump')) return ['jump', f.vy > 4 ? 1 : f.vy > -3 ? 2 : 3]; if (has('dp')) return ['dp', f.vy < 0 ? 2 : 4]; break;
       case 'dash': if (has('dash')) return ['dash', Math.min(A.dash.frames.length - 1, f.t >> 2)]; if (has('rush')) return ['rush', Math.min(3, 1 + (f.t >> 3))]; break;
       case 'hitstun': { const an = f.crouching && has('hit_crouch') ? 'hit_crouch' : 'hit'; if (has(an)) return [an, f.t < 4 ? 0 : 1]; break; }
@@ -101,6 +101,9 @@ const FrameSprites = (() => {
       case 'knockdown': if (has('down')) return ['down', f.airborne ? 0 : 1]; break;
       case 'getup': if (has('getup')) return ['getup', Math.min(A.getup.frames.length - 1, Math.floor(f.t / 6))]; break;
       case 'ko': if (has('ko')) return ['ko', f.airborne ? 0 : 1]; break;
+      // modo Calle: agarres y aturdido
+      case 'grab': if (has('grab')) return f.kneeT > 0 && has('knee') ? ['knee', Math.min(A.knee.frames.length - 1, 3 - Math.ceil(f.kneeT / 4))] : ['grab', 1]; return f.kneeT > 0 && has('sk') ? ['sk', 2] : has('lp') ? ['lp', 1] : null;
+      case 'grabbed': case 'dizzy': if (has('hit')) return ['hit', f.state === 'dizzy' ? Math.floor(f.t / 12) % 2 : 1]; break;
       case 'win': return loop('win', f.t);
       case 'intro': return loop('intro', f.t) || loop('idle', f.t);
       default:
@@ -131,5 +134,22 @@ const FrameSprites = (() => {
     ctx.restore();
     return true;
   }
-  return { load, draw, has: id => !!sets[id], sets, choose };
+  // Dibuja un fotograma concreto (enemigos del modo Calle). opts.px = altura en pantalla de la guardia.
+  function drawFrame(ctx, id, anim, i, x, gy, facing, opts = {}) {
+    const set = sets[id];
+    if (!set || !set.meta.anims[anim]) return false;
+    const fr = set.meta.anims[anim].frames[i] || set.meta.anims[anim].frames[0];
+    const [sx, sy, sw, sh] = fr.r, k = (opts.px || 136) / set.meta.height;
+    ctx.save();
+    ctx.translate(x, gy); ctx.scale(facing * k, k);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    let img = set.img, rx = sx, ry = sy;
+    const tinted = opts.tint && tintFrame(set, fr, opts.tint);
+    if (tinted) { img = tinted; rx = 0; ry = 0; }
+    ctx.drawImage(img, rx, ry, sw, sh, -fr.ax, -fr.ay, sw, sh);
+    if (opts.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.45; ctx.drawImage(img, rx, ry, sw, sh, -fr.ax, -fr.ay, sw, sh); }
+    ctx.restore();
+    return true;
+  }
+  return { load, draw, drawFrame, has: id => !!sets[id], sets, choose };
 })();

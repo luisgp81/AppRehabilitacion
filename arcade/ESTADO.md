@@ -22,14 +22,23 @@ Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e21
 El recorte separa las figuras por manchas conectadas o, si se tocan, con un corte serpenteante que rodea brazos y piernas.
 En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la piel y el resto de colores.
 
-**Modo Calle (beat 'em up), fase 1** (`js/calle.js`, menú → MODO CALLE)
-- 1 jugador con cualquiera de los tres: se mueve en profundidad, combo de puño (jab, jab, patada, remate que lanza), salto y patada voladora.
-  SP hace un especial: adelante, la embestida; quieto, el antiaéreo, que golpea a los dos lados y cuesta un poco de vida si conecta. Con la barra llena, SP lanza un super que pega a toda la pantalla.
-- Fase 1 provisional: paseo marítimo de Málaga dibujado por código, 5 oleadas y un jefe (El Director de Zona).
-  La cámara se bloquea en cada oleada; como mucho atacan dos enemigos a la vez; los enemigos lanzados arrollan a otros.
-  Hay espetos y camperos que curan, 3 vidas, continuar y puntuación.
-- Los enemigos son provisionales: los protagonistas con la ropa recoloreada (macarra, yuppie, heavy y jefe). Tienen derechos limpios: arquetipos de los 80 y 90, sin personajes reconocibles.
-- Siguiente (fase 2): arte propio de enemigos, escenarios panorámicos y agarres (prompts en el Taller). Fase 3: más fases, 2 jugadores cooperativos y pulido para móvil.
+**Modo Calle (beat 'em up)** (`js/calle*.js`, menú → MODO CALLE)
+- 3 fases: Paseo Marítimo, Salón Recreativo y Polígono y Discoteca. Cada una tiene 5 oleadas y su jefe.
+- 13 enemigos originales, cada uno con su forma de pelear (plantilla en `js/calle-roster.js`):
+  - Macarra: ráfaga de golpes. Patinadora: carga patinando. Socorrista: agarra y lanza (el jugador se suelta machacando botones).
+  - Breakdancer: molinete a los dos lados. Chaval del BMX: tirachinas a distancia. Enmascarado: armadura y plancha voladora.
+  - Yuppie: se cubre con el maletín. Heavy: armadura y cabezazo. Gótica: lanza cintas en parábola y esquiva. Vigilante: porra que aturde.
+  - Jefes:
+    - Rey del Chiringuito: sombrilla, espetos y barrigazo.
+    - Campeona de los Recreativos: píxeles, teletransporte y refuerzos.
+    - Director de Zona: combo, carga, refuerzos y un rayo a toda la pantalla que se esquiva cambiando de carril.
+- Jugador: agarre al chocar con un enemigo (P = rodillazo, atrás + P = lanzar), combo, salto, especiales y super.
+- Arte provisional: los enemigos usan el atlas de un protagonista con la ropa recoloreada y los fondos están dibujados por código.
+  En cuanto se importa el arte propio, el juego lo usa solo (`e_<id>` y `assets/stages/<fase>/`).
+- Prompts para ChatGPT en `tools/prompts-calle.md`: 29 hojas de enemigos, 15 paneles de fondo y 3 hojas de agarres.
+  Importar:
+  - Enemigos: `python3 tools/chatgpt_sheets.py import E-MACARRA-A hoja.png` y después `python3 tools/process_frames.py`.
+  - Fondos: `python3 tools/chatgpt_sheets.py import F1-P1 panel.png`.
 
 ## Pendiente
 

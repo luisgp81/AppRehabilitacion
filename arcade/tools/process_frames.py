@@ -26,6 +26,7 @@ HREL = {'crouch': 0.72, 'cp': 0.72, 'ck': 0.62, 'hit_crouch': 0.72, 'block_crouc
 ACTIVE = {'lp': [1], 'sk': [1, 2], 'cp': [1], 'ck': [1, 2], 'jp': [1], 'jk': [1], 'proj': [2], 'dp': [1, 2], 'rush': [1, 2], 'super': [2, 3], 'combo': [1], 'super2': [1, 2, 3], 'ultra': [2, 3, 4]}
 # hojas de ChatGPT (chatgpt_sheets.py): en los aéreos de 4 fotogramas el golpe estirado son el 2º y 3º
 ACTIVE_SHEET = {('jp', 4): [1, 2], ('jk', 4): [1, 2]}
+ENEMY_REF = {'idle': 1.0, 'walk': 1.0, 'hit': 0.95, 'taunt': 1.0}  # altura de la fila de referencia de cada hoja de enemigo
 LOOP = {'idle': 8, 'walk_f': 10, 'walk_b': 10, 'win': 7, 'intro': 7}
 
 
@@ -160,9 +161,12 @@ def process(cid, H):
     # hojas de ChatGPT: nº de fotogramas por fila (chatgpt_sheets.py import)
     counts = json.loads((src / 'counts.json').read_text()) if (src / 'counts.json').exists() else {}
     nframes = {}
-    for an, (n, _) in ANIMS.items():
+    # animaciones conocidas + las que traiga counts.json (enemigos del modo Calle, agarres…)
+    sheet_of = counts.pop('_sheet', {})
+    names = list(ANIMS) + [an for an in counts if an not in ANIMS]
+    for an in names:
         p = src / f'{an}.png'
-        nframes[an] = counts.get(an, n)
+        nframes[an] = counts.get(an, ANIMS.get(an, (1, ''))[0])
         if p.exists():
             per[an] = split(remove_bg(Image.open(p)), nframes[an])
     if 'idle' not in per and 'intro' in per:
@@ -173,9 +177,18 @@ def process(cid, H):
         print(f'{cid}: faltan raw/{cid}/idle.png y sheet.png, se omite'); return False
     idleH = np.median([f.height for f in per['idle']])
     allf, meta = [], {}
+    # enemigos: cada hoja se escala entera por su fila de referencia (de pie), porque filas como la caída
+    # mezclan poses de alturas muy distintas y su mediana no sirve
+    sheet_scale = {}
+    if cid.startswith('e_'):
+        for code in set(sheet_of.values()):
+            rows = [an for an, c in sheet_of.items() if c == code and an in per]
+            ref = next((an for an in ('idle', 'hit', 'taunt', 'walk') if an in rows), None)
+            if ref: sheet_scale[code] = H * ENEMY_REF[ref] / max(1, np.median([f.height for f in per[ref]]))
     for an, frs in per.items():
         target = H * HREL.get(an, 1.0)
         s = target / max(1, np.median([f.height for f in frs]))
+        if sheet_of.get(an) in sheet_scale: s = sheet_scale[sheet_of[an]]
         if an == 'idle': s = H / idleH
         out = []
         for f in frs:
@@ -184,7 +197,7 @@ def process(cid, H):
             out.append({'i': len(allf), 'ax': round(cx, 1), 'ay': round(bottom, 1)})
             allf.append(f2)
         act = ACTIVE_SHEET.get((an, len(out))) or ACTIVE.get(an)
-        if (an, len(out)) not in ACTIVE_SHEET and act and nframes.get(an, ANIMS[an][0]) != ANIMS[an][0]:  # reescalar el fotograma de impacto
+        if (an, len(out)) not in ACTIVE_SHEET and act and an in ANIMS and nframes.get(an, ANIMS[an][0]) != ANIMS[an][0]:  # reescalar el fotograma de impacto
             k = (len(out) - 1) / max(1, ANIMS[an][0] - 1)
             act = sorted({min(len(out) - 1, round(i * k)) for i in act})
         meta[an] = {'frames': out, 'fps': LOOP.get(an), 'active': act}
@@ -202,10 +215,12 @@ def process(cid, H):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('--char', default='all'); ap.add_argument('--height', type=int, default=320)
     a = ap.parse_args()
-    ids = ['luis', 'jc', 'sebas'] if a.char == 'all' else a.char.split(',')
+    # protagonistas y enemigos del modo Calle (e_<id>) que tengan tiras en assets/raw
+    known = ['luis', 'jc', 'sebas'] + sorted(d.name for d in RAW.glob('e_*') if d.is_dir()) if RAW.exists() else ['luis', 'jc', 'sebas']
+    ids = known if a.char == 'all' else a.char.split(',')
     for cid in ids: process(cid, a.height)
     # índice para el juego
-    idx = [cid for cid in ['luis', 'jc', 'sebas'] if (OUT / cid / 'atlas.json').exists()]
+    idx = [cid for cid in dict.fromkeys(known + sorted(d.name for d in OUT.glob('e_*') if d.is_dir())) if (OUT / cid / 'atlas.json').exists()]
     (OUT / 'index.json').write_text(json.dumps(idx))
     js = 'window.FRAME_INDEX = ' + json.dumps({cid: json.loads((OUT / cid / 'atlas.json').read_text()) for cid in idx}) + ';\n'
     JS_OUT.write_text('// Generado por tools/process_frames.py — no editar\n' + js)
