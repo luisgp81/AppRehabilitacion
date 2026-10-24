@@ -242,7 +242,10 @@ def do_import(args):
         if re.fullmatch(r'F\d-P\d', code): import_panel(code, src); continue
         if code not in table: sys.exit(f'Código desconocido: {code}')
         cid, rows = table[code]
-        img = Image.open(src).convert('RGB')
+        img = Image.open(src)
+        if img.mode in ('RGBA', 'LA', 'P'):  # ChatGPT a veces devuelve fondo transparente: pasa a verde croma
+            rgba = img.convert('RGBA'); bg = Image.new('RGBA', rgba.size, (0, 255, 0, 255)); bg.alpha_composite(rgba); img = bg
+        img = img.convert('RGB')
         keep = SHEETS_DIR / cid; keep.mkdir(parents=True, exist_ok=True)
         img.save(keep / f"{code}.webp", quality=92, method=6)  # original, para reimportar
         d = RAW / cid; d.mkdir(parents=True, exist_ok=True)
