@@ -2,7 +2,7 @@
 
 Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e217ca11-w57jdl`. Todo el juego vive en `arcade/`.
 
-## Hecho y probado (24 pruebas del juego + prueba del pipeline, todas en verde)
+## Hecho y probado (25 pruebas del juego + prueba del pipeline, todas en verde)
 
 **Juego jugable en el navegador** (`arcade/index.html`)
 - 3 luchadores: Luis, Juan Carlos y Sebas, con sprites recortados de la ilustración de referencia y animados con rig esquelético (WebGL, ~1 ms/frame; modo Canvas 2D de respaldo).
@@ -53,6 +53,8 @@ Partidas completas con un jugador automático: Juan Carlos termina las 3 fases y
 - Atlas en páginas webp de 2048x2048 (24 MB en vez de 100): iOS no dibuja imágenes de más de unos 16 MP.
 - Los enemigos de cada fase se cargan al empezarla.
 - Para instalarlo hay que publicarlo en una web con HTTPS: GitHub Pages, Netlify o similar, subiendo la carpeta `arcade/`.
+- Privado entre amigos: pide una clave la primera vez (`ACCESS_HASH` en js/game.js) y no se indexa en buscadores (`robots.txt`, `_headers` y meta noindex).
+  No es seguridad real: frena a los curiosos.
 
 ## Pendiente
 
@@ -78,7 +80,7 @@ Partidas completas con un jugador automático: Juan Carlos termina las 3 fases y
 ## Comprobar que todo sigue bien
 
 ```bash
-node arcade/tests/game.test.cjs       # juego (24 pruebas)
+node arcade/tests/game.test.cjs       # juego (25 pruebas)
 node arcade/tests/pipeline.test.cjs   # pipeline de fotogramas
 npx http-server -p 8080 .             # y abrir http://localhost:8080/arcade/
 ```
