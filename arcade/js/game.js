@@ -962,8 +962,31 @@ function drawPortrait(ctx, L, cx, cy, size, facing, t, expr = 'normal') {
   ctx.restore();
 }
 
+// ── Acceso con clave (juego privado entre amigos) ──
+// No es seguridad de verdad (los archivos son públicos para quien tenga el enlace): solo frena a curiosos.
+// La clave no está escrita aquí, solo su huella; para cambiarla: node -e con ACCESS_HASH de la nueva clave.
+const ACCESS_HASH = 1578241170; // «CHIRINGUITO»
+function accessHash(s) { let x = 5381; for (const c of s.toUpperCase().trim()) x = ((Math.imul(x, 33) ^ c.charCodeAt(0)) >>> 0); return x; }
+function accessGate() {
+  const KEY = 'seleccion-arcade-acceso';
+  let ok = false;
+  try { ok = localStorage.getItem(KEY) === String(ACCESS_HASH); } catch (e) { /* sin almacenamiento */ }
+  if (ok || TEST) return;
+  const gate = document.getElementById('gate'), input = document.getElementById('gate-key'), err = document.getElementById('gate-err');
+  gate.classList.add('show');
+  input.addEventListener('keydown', e => e.stopPropagation());
+  gate.addEventListener('submit', e => {
+    e.preventDefault();
+    if (accessHash(input.value) === ACCESS_HASH) {
+      try { localStorage.setItem(KEY, String(ACCESS_HASH)); } catch (e2) { /* sin almacenamiento */ }
+      gate.classList.remove('show'); input.blur();
+    } else { err.textContent = 'CLAVE INCORRECTA'; input.select(); }
+  });
+}
+
 // ── Arranque ──
 (function boot() {
+  accessGate();
   const canvas = document.getElementById('game');
   Keys.init();
   const game = new Game(canvas);

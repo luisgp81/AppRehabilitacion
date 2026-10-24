@@ -16,7 +16,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SHOTS = process.env.SHOTS || '';
 
 function serve() {
-  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
+  const types = { '.txt': 'text/plain', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
   const srv = http.createServer((req, res) => {
     const u = decodeURIComponent(req.url.split('?')[0]);
     const f = path.join(ROOT, u === '/' ? 'index.html' : u);
@@ -451,6 +451,23 @@ async function main() {
     await p.shot('t22-calle-coop');
     assert(!p.errs.length && !(await p.g(() => SA.game.errors.length)), 'errores: ' + p.errs.join(' | '));
     await p.close();
+  });
+
+  await test('Acceso con clave: pide la clave, rechaza una mala y recuerda la buena', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const p = await ctx.newPage();
+    await p.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+    await p.goto(base);
+    assert(await p.locator('#gate').isVisible(), 'no pide la clave');
+    await p.fill('#gate-key', 'boquerón'); await p.click('#gate button');
+    assert(await p.locator('#gate').isVisible() && (await p.textContent('#gate-err')).includes('INCORRECTA'), 'acepta una clave mala');
+    await p.fill('#gate-key', 'chiringuito'); await p.click('#gate button');
+    assert(!(await p.locator('#gate').isVisible()), 'no acepta la clave buena');
+    await p.reload();
+    assert(!(await p.locator('#gate').isVisible()), 'no recuerda la clave');
+    const robots = await p.evaluate(async () => (await fetch('robots.txt')).text());
+    assert(/Disallow: \//.test(robots) && await p.locator('meta[name=robots]').count() === 1, 'falta la protección contra buscadores');
+    await ctx.close();
   });
 
   await test('App instalable: manifiesto, service worker y arranque sin conexión', async () => {
