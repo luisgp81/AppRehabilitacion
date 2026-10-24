@@ -972,7 +972,7 @@ function thugFrame(e) {
     case 'getup': r = own ? ['down', Math.max(0, n('down') - 1 - Math.floor(e.t / 4))] : ['getup', Math.min(n('getup') - 1, Math.floor(e.t / 6))]; break;
     case 'jump': r = own ? ['hit', 0] : ['jump', 2]; break;
     case 'land': r = own ? ['idle', 0] : ['jump', 0]; break;
-    default: r = loop('idle', e.t + e.idx * 17);
+    default: r = own && A.taunt && e.def.boss && (e.w.bossIntro > 0 || e.w.player.hp <= 0) ? loop('taunt', e.t, 6) : loop('idle', e.t + e.idx * 17); // el jefe se pavonea al presentarse
   }
   if (!A[r[0]]) r = ['idle', 0];
   return [set, r[0], Math.min(r[1], n(r[0]) - 1)];
