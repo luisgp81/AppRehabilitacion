@@ -17,15 +17,26 @@ const StageArt = {
     }
   },
   ok(id) { const s = this.sets[id]; return !!s && s.ready === s.n; },
+  // los paneles se solapan FADE píxeles y se funden en el empalme (ChatGPT no los hace continuos al píxel)
+  FADE: 70,
   // largo de la fase en píxeles lógicos (paneles a 360 de alto)
-  len(id) { return this.sets[id].imgs.reduce((a, im) => a + im.width * H / im.height, 0); },
+  len(id) { const ims = this.sets[id].imgs; return ims.reduce((a, im) => a + im.width * H / im.height, 0) - this.FADE * (ims.length - 1); },
   draw(ctx, id, cx) {
     let x = -cx;
-    for (const im of this.sets[id].imgs) {
-      const w = im.width * H / im.height;
-      if (x + w > 0 && x < W) ctx.drawImage(im, Math.floor(x), 0, Math.ceil(w) + 1, H);
-      x += w;
-    }
+    const F = this.FADE, N = 14;
+    this.sets[id].imgs.forEach((im, i) => {
+      const w = im.width * H / im.height, k = im.width / w;
+      if (x + w > 0 && x < W) {
+        if (i === 0) ctx.drawImage(im, Math.floor(x), 0, Math.ceil(w) + 1, H);
+        else { // borde izquierdo en franjas de opacidad creciente sobre el panel anterior
+          const sw = F / N;
+          for (let j = 0; j < N; j++) { ctx.globalAlpha = (j + 1) / (N + 1); ctx.drawImage(im, j * sw * k, 0, sw * k, im.height, Math.floor(x + j * sw), 0, Math.ceil(sw) + 1, H); }
+          ctx.globalAlpha = 1;
+          ctx.drawImage(im, F * k, 0, im.width - F * k, im.height, Math.floor(x + F), 0, Math.ceil(w - F) + 1, H);
+        }
+      }
+      x += w - F;
+    });
   },
 };
 
