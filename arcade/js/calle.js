@@ -854,7 +854,7 @@ class Calle {
     const [set, anim, i] = thugFrame(e);
     FrameSprites.drawFrame(ctx, set, anim, i, e.x, groundY(e.z) - e.y, e.facing, { px: e.size, tint: set === e.def.base ? e.def.tint : null, flash: e.flash > 0 });
     ctx.globalAlpha = 1;
-    if (e.state === 'guard') { ctx.strokeStyle = 'rgba(127,212,255,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x + e.facing * 0.2 * e.size, groundY(e.z) - 0.55 * e.size, 0.28 * e.size, -1.2, 1.2); ctx.stroke(); }
+    if (e.state === 'guard' && set === e.def.base) { ctx.strokeStyle = 'rgba(127,212,255,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x + e.facing * 0.2 * e.size, groundY(e.z) - 0.55 * e.size, 0.28 * e.size, -1.2, 1.2); ctx.stroke(); }
     if (e.armorN > 0 && this.frame - e.armorF < 12) { ctx.fillStyle = 'rgba(255,155,59,0.25)'; ctx.fillRect(e.x - 0.18 * e.size, groundY(e.z) - e.size, 0.36 * e.size, e.size); }
   }
   drawBeam(ctx) {
