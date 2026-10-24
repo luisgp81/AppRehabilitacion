@@ -182,20 +182,37 @@ class Thug extends Brawler {
 class Calle {
   constructor(game, idx) {
     this.game = game; this.frame = 0;
+    this.players = []; this.score = 0; this.nextLife = 50000;
+    game.f1 = null; game.f2 = null;
+    this.addPlayer(idx, 0);
+    for (const st of CALLE_STAGES) StageArt.load(st.id);
+    this.startStage(+(PARAMS.get('fase') || 1) - 1);
+  }
+  get player() { return this.players[0]; }
+  get active() { return this.players.filter(p => !p.out); }
+  // Alta de jugador: el 2.º entra en cualquier momento pulsando START con su mando o teclado
+  addPlayer(idx, slot) {
     const ch = CHARS[idx];
-    this.player = new Brawler(this, ch, { player: true, hp: ch.stats.hp, x: 120, z: 56, ctrl: game.ctrls[0] });
-    this.lives = 2; this.score = 0; this.meter = 0; this.nextLife = 50000;
-    game.f1 = this.player; game.f2 = null;
+    const p = new Brawler(this, ch, { player: true, hp: ch.stats.hp, x: slot ? (this.camX || 0) + 80 : 120, z: slot ? 30 : 56, ctrl: this.game.ctrls[slot] });
+    Object.assign(p, { slot, lives: 2, meter: 0, out: false, superHits: 0 });
     // golpes con arma (escala de los protagonistas) y ataque hacia atrás
-    const pl = this.player, ls = ch.look.scale;
+    const ls = ch.look.scale;
     for (const [k, w] of Object.entries(CALLE_WEAPONS)) {
       const m = Object.assign({ id: 'w_' + k, kind: 'normal', name: null }, w.move);
       if (m.hb) m.hb = { x: m.hb.x * ls, y: m.hb.y * ls, w: m.hb.w * ls, h: m.hb.h * ls };
-      pl.moves['w_' + k] = m;
+      p.moves['w_' + k] = m;
     }
-    pl.moves.back = Object.assign({}, pl.moves.sk, { id: 'back', dmg: 46, knockdown: true, launch: { vx: 3, vy: 6 }, cancel: null });
-    for (const st of CALLE_STAGES) StageArt.load(st.id);
-    this.startStage(+(PARAMS.get('fase') || 1) - 1);
+    p.moves.back = Object.assign({}, p.moves.sk, { id: 'back', dmg: 46, knockdown: true, launch: { vx: 3, vy: 6 }, cancel: null });
+    this.players[slot] = p; this.game['f' + (slot + 1)] = p;
+    if (slot) { p.invuln = 90; this.game.fx.word(p.x, groundY(p.z) - p.hpx, '¡' + ch.name + ' SE UNE!', ch.color, 10); Audio8.play('coin'); }
+    return p;
+  }
+  tryJoin() {
+    if (this.players.length > 1 || !['play', 'intro'].includes(this.phase)) return false;
+    if (!this.game.ctrls[1].pressed.start) return false;
+    const used = this.player.ch.id;
+    this.addPlayer((CHARS.findIndex(c => c.id === used) + 1) % CHARS.length, 1);
+    return true;
   }
   startStage(i) {
     const st = this.stage = Object.assign({}, CALLE_STAGES[i]);
@@ -209,8 +226,7 @@ class Calle {
     this.time = 99 * 60; this.atm = null;
     this.phase = 'intro'; this.pt = 0; this.hitstop = 0; this.shakeT = 0; this.shakeA = 0;
     this.foeHud = null; this.superFx = 0; this.nextId = 1; this.beam = null; this.goT = 0; this.bossIntro = 0;
-    const p = this.player;
-    Object.assign(p, { x: 120, z: 56, y: 0, vx: 0, vz: 0, vy: 0, hp: p.maxHp, state: 'idle', move: null, t: 0, invuln: 0 });
+    for (const p of this.active) Object.assign(p, { x: 120 - p.slot * 40, z: 56 - p.slot * 26, y: 0, vx: 0, vz: 0, vy: 0, hp: p.maxHp, state: 'idle', move: null, t: 0, invuln: 0, held: null, by: null });
     Audio8.music('fight');
   }
   shake(a) { this.shakeT = 10; this.shakeA = a; }
@@ -225,20 +241,21 @@ class Calle {
     if (this.phase === 'over') return this.updOver();
     if (this.phase === 'ending') { if (this.pt > 120 && this.game.menuInput().ok) { Audio8.music('menu'); this.game.go('menu'); } return; }
     if (this.hitstop > 0) { this.hitstop--; return; }
-    const p = this.player;
+    const ps = this.active;
     if (this.phase === 'bonus') return this.updBonus();
     if (this.phase === 'intro' && this.pt >= 90) { this.phase = 'play'; this.pt = 0; }
     // tiempo por tramo: se recarga al limpiar cada oleada; si llega a cero, se pierde una vida
-    if (this.phase === 'play' && !this.bossIntro && p.hp > 0 && --this.time <= 0) {
-      this.time = 99 * 60; p.hp = 0; Object.assign(p, { state: 'launched', vy: 5, y: 0.5, vx: -2 * p.facing, move: null, held: null });
-      this.game.fx.word(p.x, groundY(p.z) - p.hpx, '¡TIEMPO!', '#ff5b7a', 14); Audio8.play('bell');
+    if (this.phase === 'play' && !this.bossIntro && ps.some(p => p.hp > 0) && --this.time <= 0) {
+      this.time = 99 * 60;
+      for (const p of ps) if (p.hp > 0) { p.hp = 0; Object.assign(p, { state: 'launched', vy: 5, y: 0.5, vx: -2 * p.facing, move: null, held: null }); this.game.fx.word(p.x, groundY(p.z) - p.hpx, '¡TIEMPO!', '#ff5b7a', 14); }
+      Audio8.play('bell');
     }
-    while (this.score >= this.nextLife) { this.nextLife += 50000; this.lives++; Audio8.play('coin'); this.game.fx.word(p.x, groundY(p.z) - p.hpx - 20, '¡VIDA EXTRA!', '#5effa0', 12); }
-    if (this.phase !== 'clear' && this.pt > (this.phase === 'intro' ? 40 : 0)) this.updPlayer();
+    this.extraLives();
+    if (this.phase !== 'clear' && this.pt > (this.phase === 'intro' ? 40 : 0)) for (const p of ps) this.updPlayer(p);
     this.spawnQueue();
     this.pickEngaged();
     for (const e of this.foes) this.updFoe(e);
-    for (const b of [p, ...this.foes]) { b.update(); b.physics(); if (b === p) updatePose(b); }
+    for (const b of [...ps, ...this.foes]) { b.update(); b.physics(); if (b.isPlayer) updatePose(b); }
     this.keepOnScreen();
     this.updHolds();
     this.updSuper();
@@ -251,12 +268,17 @@ class Calle {
     this.cleanup();
     this.updCamera();
     this.updProgress();
-    if (p.state === 'dead') this.playerDown();
+    for (const p of ps) if (p.state === 'dead') this.playerDown(p);
     if (this.phase === 'clear') this.updClear();
   }
+  extraLives() {
+    while (this.score >= this.nextLife) {
+      this.nextLife += 50000; Audio8.play('coin');
+      for (const p of this.active) { p.lives++; this.game.fx.word(p.x, groundY(p.z) - p.hpx - 20, '¡VIDA EXTRA!', '#5effa0', 12); }
+    }
+  }
   updClear() {
-    const p = this.player;
-    if (this.pt === 60) { p.state = 'win'; p.t = 0; p.move = null; Audio8.music('win'); Audio8.say('Fase superada'); }
+    if (this.pt === 60) { for (const p of this.active) { p.state = 'win'; p.t = 0; p.move = null; } Audio8.music('win'); Audio8.say('Fase superada'); }
     if (this.pt > 200 && this.game.menuInput().ok) {
       if (this.stageI + 1 < CALLE_STAGES.length) this.startBonus();
       else { this.phase = 'ending'; this.pt = 0; Audio8.say('¡Málaga está a salvo!'); }
@@ -264,18 +286,18 @@ class Calle {
   }
 
   // ── Jugador ──
-  updPlayer() {
-    const p = this.player, c = p.ctrl, h = c.held;
+  updPlayer(p) {
+    const c = p.ctrl, h = c.held;
     if (p.state === 'win') return;
     if (p.state === 'grabbed' || p.state === 'dizzy') { // machacar botones para soltarse antes
       if (['p', 'k', 's', 'left', 'right', 'up', 'down'].some(b => c.pressed[b])) { p.mash = (p.mash || 0) + 1; if (p.state === 'dizzy') p.dizzyT -= 4; }
       return;
     }
-    if (p.state === 'grab') return this.updGrab();
+    if (p.state === 'grab') return this.updGrab(p);
     if (p.free) {
       if (c.buffered('s', 4)) {
         c.consume('s');
-        if (this.meter >= 100) { this.meter -= 100; this.startSuper(); return; }
+        if (p.meter >= 100) { p.meter -= 100; this.startSuper(p); return; }
         p.startMove(c.fwd(p.facing) ? 'rush' : 'dp'); p.special = true;
         this.callout(p.move.name, p);
         return;
@@ -289,41 +311,38 @@ class Calle {
       }
       // ataque hacia atrás: P y K a la vez (como en los clásicos, para salir de un rodeo)
       if (c.buffered('p', 3) && c.buffered('k', 3)) { c.consume('p'); c.consume('k'); p.facing = -p.facing; p.startMove('back'); p.special = false; return; }
-      if (c.buffered('p', 4) && p.weapon) { c.consume('p'); this.swing(); return; }
-      if (c.buffered('p', 4)) { c.consume('p'); this.punch(this.frame - p.lastConnect < 26 ? p.chain + 1 : 0); return; }
+      if (c.buffered('p', 4) && p.weapon) { c.consume('p'); this.swing(p); return; }
+      if (c.buffered('p', 4)) { c.consume('p'); this.punch(p, this.frame - p.lastConnect < 26 ? p.chain + 1 : 0); return; }
       const dx = (h.right ? 1 : 0) - (h.left ? 1 : 0), dz = (h.down ? 1 : 0) - (h.up ? 1 : 0);
       p.vx = dx * p.ch.stats.walkF * 0.8; p.vz = dz * 1.6;
       if (dx) p.facing = dx;
       p.state = dx || dz ? 'walk' : 'idle';
       // agarre automático al chocar de frente con un enemigo, como en los clásicos
-      if (dx) { const f = this.grabTarget(); if (f) this.startGrab(f); }
+      if (dx) { const f = this.grabTarget(p); if (f) this.startGrab(p, f); }
     } else if (p.state === 'jump' && !p.airUsed && (c.buffered('p', 4) || c.buffered('k', 4))) {
       const id = c.buffered('k', 4) ? 'jk' : 'jp', vx = p.vx, vz = p.vz;
       c.consume('p'); c.consume('k'); p.startMove(id); p.vx = vx; p.vz = vz; p.airUsed = true;
     } else if (p.state === 'attack' && p.move.kind === 'normal' && p.hasHit && p.mf >= p.move.startup + p.move.active && c.buffered('p', 8) && p.chain < CALLE.CHAIN.length - 1) {
-      c.consume('p'); this.punch(p.chain + 1);
+      c.consume('p'); this.punch(p, p.chain + 1);
     }
   }
-  punch(step) {
-    const p = this.player;
+  punch(p, step) {
     p.chain = Math.min(step, CALLE.CHAIN.length - 1);
     p.startMove(CALLE.CHAIN[p.chain]); p.special = false;
     if (p.chain === CALLE.CHAIN.length - 1) this.callout(p.move.name, p);
   }
-  grabTarget() {
-    const p = this.player;
+  grabTarget(p) {
     return this.foes.find(f => f.hp > 0 && f.entered && !f.def.boss && (f.def.armor || 0) < 2 && (f.free || f.state === 'hitstun')
       && Math.abs(f.z - p.z) < 8 && Math.sign(f.x - p.x) === p.facing && Math.abs(f.x - p.x) < 0.16 * f.size + 16);
   }
-  startGrab(f) {
-    const p = this.player;
+  startGrab(p, f) {
     Object.assign(p, { state: 'grab', grabT: 0, held: f, knees: 0, kneeT: 0, vx: 0, vz: 0 });
     Object.assign(f, { state: 'grabbed', move: null, vx: 0, vz: 0 });
     Audio8.play('block');
   }
   // Agarre: P = rodillazo (al tercero, lanzamiento); atrás + P = lanzar por encima; K = soltar
-  updGrab() {
-    const p = this.player, c = p.ctrl, f = p.held;
+  updGrab(p) {
+    const c = p.ctrl, f = p.held;
     p.grabT++;
     if (p.kneeT > 0) p.kneeT--;
     const release = () => { p.state = 'idle'; p.held = null; p.t = 0; if (f.state === 'grabbed') { f.state = 'hitstun'; f.stun = 12; f.pushV = p.facing * 2; } };
@@ -349,8 +368,8 @@ class Calle {
     if (p.grabT > 110) release();
   }
   // Arma: golpe propio; el móvil se lanza. Cada golpe gasta un uso
-  swing() {
-    const p = this.player, w = CALLE_WEAPONS[p.weapon.kind];
+  swing(p) {
+    const w = CALLE_WEAPONS[p.weapon.kind];
     p.startMove('w_' + p.weapon.kind); p.special = false;
     if (w.throw) {
       this.shots.push({ x: p.x + p.facing * 20, z: p.z, y: 0.6 * p.hpx, vx: 7 * p.facing, vy: 0, arc: false, kind: 'movil', dmg: 60, owner: p, mine: true, life: 120, rot: 0 });
@@ -358,20 +377,19 @@ class Calle {
     }
     if (--p.weapon.uses <= 0) { this.game.fx.word(p.x, groundY(p.z) - p.hpx, '¡SE ROMPIÓ!', '#bbb', 8); p.weapon = null; }
   }
-  dropWeapon() {
-    const p = this.player;
+  dropWeapon(p) {
     if (!p.weapon) return;
     this.items.push({ x: p.x - p.facing * 30, z: p.z, kind: p.weapon.kind, uses: p.weapon.uses, taken: false, cool: 60 });
     p.weapon = null;
   }
   // Objetos rompibles: aguantan dos golpes y sueltan lo que esconden
   hitProps() {
-    const p = this.player, hb = p.hitbox();
-    for (const pr of this.props) {
-      if (pr.shakeT > 0) pr.shakeT--;
-      if (pr.hp <= 0 || !hb || Math.abs(pr.z - p.z) > 16 || pr.hitBy === p.serial) continue;
+    for (const pr of this.props) if (pr.shakeT > 0) pr.shakeT--;
+    for (const p of this.active) for (const pr of this.props) {
+      const hb = p.hitbox();
+      if (pr.hp <= 0 || !hb || Math.abs(pr.z - p.z) > 16 || pr.hitBy === p.serial + p.slot * 1e6) continue;
       if (hb.r < pr.x - 16 || hb.l > pr.x + 16) continue;
-      pr.hitBy = p.serial; pr.hp--; pr.shakeT = 10; p.hasHit = true;
+      pr.hitBy = p.serial + p.slot * 1e6; pr.hp--; pr.shakeT = 10; p.hasHit = true;
       Audio8.play(pr.hp > 0 ? 'block' : 'hitHeavy');
       this.game.fx.spark(pr.x, groundY(pr.z) - 22, '#ffe36e', pr.hp > 0 ? 5 : 12);
       if (pr.hp <= 0) { this.score += 200; this.shake(3); if (pr.drop) this.items.push({ x: pr.x, z: pr.z, kind: pr.drop, taken: false }); }
@@ -379,50 +397,52 @@ class Calle {
   }
   // Bonus entre fases: el cajero automático se ha vuelto loco y escupe billetes. 30 segundos para reventarlo
   startBonus() {
-    const p = this.player;
     this.phase = 'bonus'; this.pt = 0; this.foes = []; this.shots = []; this.items = []; this.props = [];
     this.camX = 0; this.lockX = 0;
     this.atm = { x: 400, z: 40, hp: 40, maxHp: 40, hitBy: -1, shakeT: 0, broken: false };
     this.bonusT = 30 * 60; this.bonusScore = 0; this.donePt = 0;
-    Object.assign(p, { x: 200, z: 44, state: 'idle', move: null, t: 0, weapon: null });
+    for (const p of this.active) Object.assign(p, { x: 200 - p.slot * 60, z: 44 + p.slot * 20, state: 'idle', move: null, t: 0, weapon: null });
     Audio8.music('fight'); Audio8.say('¡Bonus!');
   }
   updBonus() {
-    const p = this.player, a = this.atm;
-    if (this.pt > 60 && !a.broken && this.bonusT > 0) { this.bonusT--; this.updPlayer(); }
+    const a = this.atm;
+    if (this.pt > 60 && !a.broken && this.bonusT > 0) this.bonusT--;
+    if (a.shakeT > 0) a.shakeT--;
+    for (const p of this.active) {
+    if (this.pt > 60 && !a.broken && this.bonusT > 0) this.updPlayer(p);
     p.update(); p.physics(); updatePose(p);
     p.x = clamp(p.x, 20, W - 20);
-    if (a.shakeT > 0) a.shakeT--;
-    const hb = p.hitbox();
-    if (!a.broken && hb && Math.abs(a.z - p.z) < 20 && a.hitBy !== p.serial && hb.r > a.x - 34 && hb.l < a.x + 34) {
-      a.hitBy = p.serial; a.hp -= Math.max(1, Math.round((p.move.dmg || 40) / 30)); a.shakeT = 8; p.hasHit = true; p.lastConnect = this.frame;
+    const hb = p.hitbox(), key = p.serial + p.slot * 1e6;
+    if (!a.broken && hb && Math.abs(a.z - p.z) < 20 && a.hitBy !== key && hb.r > a.x - 34 && hb.l < a.x + 34) {
+      a.hitBy = key; a.hp -= Math.max(1, Math.round((p.move.dmg || 40) / 30)); a.shakeT = 8; p.hasHit = true; p.lastConnect = this.frame;
       this.bonusScore += 300; this.score += 300; Audio8.play('hitLight');
       this.game.fx.spark(a.x - p.facing * 20, groundY(a.z) - 50, '#ffe36e', 6);
       this.game.fx.icons(a.x, groundY(a.z) - 70, 'euro', 3);
       if (a.hp <= 0) { a.broken = true; this.bonusScore += 10000; this.score += 10000; this.pt = 0; this.shake(10); this.game.flashT = 10; Audio8.play('ko'); this.game.fx.icons(a.x, groundY(a.z) - 60, 'euro', 20); }
     }
-    while (this.score >= this.nextLife) { this.nextLife += 50000; this.lives++; Audio8.play('coin'); }
+    }
+    this.extraLives();
     const done = a.broken ? this.pt > 150 : this.bonusT <= 0 && this.pt > 60;
     if (done && this.game.menuInput().ok || done && this.donePt && this.pt - this.donePt > 300) { this.lockX = null; this.atm = null; this.startStage(this.stageI + 1); }
     if (done && !this.donePt) this.donePt = this.pt;
   }
-  startSuper() {
-    const p = this.player;
+  startSuper(p) {
     p.startMove('super'); p.special = false; p.invuln = 60;
-    this.superFx = 70; this.superHits = 0; this.game.flashT = 10;
+    this.superFx = 70; this.superBy = p; p.superHits = 0; this.game.flashT = 10;
     Audio8.play('superStart'); this.callout(p.ch.moves.super.name, p); this.shake(6);
   }
   // Super: golpea a todos los enemigos en pantalla, 4 impactos y el último lanza
   updSuper() {
-    const p = this.player;
-    if (!(p.state === 'attack' && p.move && p.move.id === 'super')) return;
-    if (p.mf < 10 || (p.mf - 10) % 9 || this.superHits >= 4) return;
-    this.superHits++;
-    const last = this.superHits === 4;
+    for (const p of this.active) {
+    if (!(p.state === 'attack' && p.move && p.move.id === 'super')) continue;
+    if (p.mf < 10 || (p.mf - 10) % 9 || p.superHits >= 4) continue;
+    p.superHits++;
+    const last = p.superHits === 4;
     const m = { dmg: 55, hitstun: 30, push: 1, knockdown: last, launch: last ? { vx: 4, vy: 8 } : null, kind: 'super', fx: p.ch.moves.super.fx };
     for (const e of this.foes) if (e.hurtbox() && e.x > this.camX - 20 && e.x < this.camX + W + 20) this.applyHit(p, e, m, { x: e.x, y: 0.5 * e.size });
-    for (const s of this.shots) s.life = 0;
+    for (const s of this.shots) if (!s.mine) s.life = 0;
     Audio8.play('superHit'); this.shake(5);
+    }
   }
 
   // ── Habilidades de los enemigos ──
@@ -435,7 +455,6 @@ class Calle {
     Audio8.play('whoosh');
   }
   updShots() {
-    const p = this.player, phb = p.hitbox();
     for (const s of this.shots) {
       s.life--; s.x += s.vx; s.rot += 0.3;
       if (s.arc) { s.vy -= 0.16; s.y += s.vy; if (s.y <= 0) { s.life = 0; this.game.fx.spark(s.x, groundY(s.z), '#ccc', 5, 0.6); } }
@@ -443,25 +462,28 @@ class Calle {
       if (s.life <= 0) continue;
       if (s.mine) { // móvil lanzado por el jugador
         const e = this.foes.find(e => { const hu = e.hurtbox(); return hu && Math.abs(e.z - s.z) < 14 && s.x > hu.l - 6 && s.x < hu.r + 6; });
-        if (e) { s.life = 0; this.applyHit(p, e, { dmg: s.dmg, knockdown: true, launch: { vx: 3, vy: 6 } }, { x: s.x, y: s.y, dir: Math.sign(s.vx) }); }
+        if (e) { s.life = 0; this.applyHit(s.owner, e, { dmg: s.dmg, knockdown: true, launch: { vx: 3, vy: 6 } }, { x: s.x, y: s.y, dir: Math.sign(s.vx) }); }
         continue;
       }
-      // el jugador puede romper los objetos de un golpe
-      if (phb && Math.abs(s.z - p.z) < 14 && s.x > phb.l && s.x < phb.r && s.y > phb.b - 10 && s.y < phb.t + 10) {
-        s.life = 0; this.score += 50; this.game.fx.spark(s.x, groundY(s.z) - s.y, '#fff', 8); Audio8.play('block'); continue;
-      }
-      const hu = p.hurtbox();
-      if (hu && Math.abs(s.z - p.z) < 12 && s.x > hu.l - 6 && s.x < hu.r + 6 && s.y > hu.b && s.y < hu.t) {
-        s.life = 0;
-        this.applyHit(s.owner, p, { dmg: s.dmg, hitstun: 20, push: 3, knockdown: s.kind === 'espeto' }, { x: s.x, y: s.y, dir: Math.sign(s.vx) });
+      for (const p of this.active) {
+        // el jugador puede romper los objetos de un golpe
+        const phb = p.hitbox();
+        if (phb && Math.abs(s.z - p.z) < 14 && s.x > phb.l && s.x < phb.r && s.y > phb.b - 10 && s.y < phb.t + 10) {
+          s.life = 0; this.score += 50; this.game.fx.spark(s.x, groundY(s.z) - s.y, '#fff', 8); Audio8.play('block'); break;
+        }
+        const hu = p.hurtbox();
+        if (hu && Math.abs(s.z - p.z) < 12 && s.x > hu.l - 6 && s.x < hu.r + 6 && s.y > hu.b && s.y < hu.t) {
+          s.life = 0;
+          this.applyHit(s.owner, p, { dmg: s.dmg, hitstun: 20, push: 3, knockdown: s.kind === 'espeto' }, { x: s.x, y: s.y, dir: Math.sign(s.vx) });
+          break;
+        }
       }
     }
     this.shots = this.shots.filter(s => s.life > 0);
   }
   leapLand(e) {
-    const p = this.player, hu = p.hurtbox();
     this.shake(6); this.game.fx.dust(e.x, groundY(e.z)); Audio8.play('hitHeavy');
-    if (hu && p.y < 30 && Math.abs(p.x - e.x) < 0.5 * e.size && Math.abs(p.z - e.z) < 18) this.applyHit(e, p, e.def.moves.skill, { x: p.x, y: 30 });
+    for (const p of this.active) { const hu = p.hurtbox(); if (hu && p.y < 30 && Math.abs(p.x - e.x) < 0.5 * e.size && Math.abs(p.z - e.z) < 18) this.applyHit(e, p, e.def.moves.skill, { x: p.x, y: 30 }); }
   }
   // Rayo a lo ancho de la pantalla: avisa con una franja roja en su carril; se esquiva cambiando de carril o saltando
   updBeam() {
@@ -470,19 +492,21 @@ class Calle {
     b.t++;
     if (b.e.hp <= 0 || b.e.state !== 'attack') { this.beam = null; return; }
     if (b.t === b.warn) {
-      const p = this.player, hu = p.hurtbox();
       this.game.flashT = 8; this.shake(8); Audio8.play('superHit');
-      if (hu && Math.abs(p.z - b.z) < 16 && p.y < 40) this.applyHit(b.e, p, b.m, { x: p.x, y: 50, dir: Math.sign(p.x - b.e.x) || 1 });
+      for (const p of this.active) { const hu = p.hurtbox(); if (hu && Math.abs(p.z - b.z) < 16 && p.y < 40) this.applyHit(b.e, p, b.m, { x: p.x, y: 50, dir: Math.sign(p.x - b.e.x) || 1 }); }
     }
     if (b.t > b.warn + 24) this.beam = null;
   }
   // Agarres de enemigos: si el jugador machaca botones se suelta; si no, lo lanzan
   updHolds() {
-    const p = this.player;
-    if (p.state === 'grabbed' && (!p.by || p.by.state !== 'hold' || p.by.hp <= 0)) { p.state = 'idle'; p.by = null; p.t = 0; }
+    // agarres rotos (al jugador le golpean mientras sujeta): suelta al enemigo
+    for (const p of this.players) if (p.held && (p.state !== 'grab' || p.out)) { const f = p.held; p.held = null; if (f.state === 'grabbed') { f.state = 'hitstun'; f.stun = 10; f.t = 0; } }
+    for (const f of this.foes) if (f.state === 'grabbed' && !this.players.some(p => p.held === f)) { f.state = 'hitstun'; f.stun = 10; f.t = 0; }
+    for (const p of this.active) if (p.state === 'grabbed' && (!p.by || p.by.state !== 'hold' || p.by.hp <= 0)) { p.state = 'idle'; p.by = null; p.t = 0; }
     for (const e of this.foes) {
       if (e.state !== 'hold') continue;
-      if (p.state !== 'grabbed' || p.by !== e || e.hp <= 0) { e.state = 'idle'; continue; }
+      const p = e.victim;
+      if (!p || p.state !== 'grabbed' || p.by !== e || e.hp <= 0) { e.state = 'idle'; continue; }
       e.holdT--;
       p.x = e.x + e.facing * (0.2 * e.size); p.z = e.z; p.facing = -e.facing;
       if (p.mash >= 10) {
@@ -500,14 +524,16 @@ class Calle {
 
   // ── Oleadas, cámara y progreso ──
   updCamera() {
-    const p = this.player, st = this.stage;
+    const st = this.stage, ps = this.active;
+    if (!ps.length) return;
     const wave = st.waves[this.waveI];
-    let target = p.x - 250;
+    const minX = Math.min(...ps.map(p => p.x)), maxX = Math.max(...ps.map(p => p.x));
+    let target = Math.min(maxX - 250, minX - 30); // con dos jugadores, la cámara no deja atrás a ninguno
     if (this.lockX !== null) target = this.lockX;
     else if (wave) target = Math.min(target, wave.at * st.len - W * 0.62);
     this.camX = Math.max(this.camX, Math.min(target, st.len - W));
     const lo = this.camX + 18, hi = (this.lockX !== null ? this.lockX : this.camX) + W - 18;
-    p.x = clamp(p.x, lo, Math.min(hi, st.len - 18));
+    for (const p of ps) p.x = clamp(p.x, lo, Math.min(hi, st.len - 18));
   }
   keepOnScreen() {
     for (const e of this.foes) {
@@ -526,7 +552,7 @@ class Calle {
     if (this.phase !== 'play') return;
     const wave = this.stage.waves[this.waveI];
     if (!wave) return;
-    if (this.lockX === null && this.player.x > wave.at * this.stage.len - W * 0.62 + 300) {
+    if (this.lockX === null && Math.max(...this.active.map(p => p.x)) > wave.at * this.stage.len - W * 0.62 + 300) {
       this.lockX = this.camX;
       wave.foes.forEach((id, i) => this.queue.push({ id, delay: 20 + i * 45 }));
       if (wave.boss) { Audio8.say('¡Cuidado!'); this.bossIntro = 140; this.bossName = ROSTER[wave.foes[0]].name; }
@@ -551,13 +577,22 @@ class Calle {
   // Solo dos enemigos cuerpo a cuerpo (más el jefe) atacan a la vez; los de distancia disparan cuando pueden
   pickEngaged() {
     if (this.frame % 30 && this.engaged.length) { this.engaged = this.engaged.filter(e => this.foes.includes(e) && e.hp > 0); return; }
-    const p = this.player;
-    const live = this.foes.filter(e => e.hp > 0).sort((a, b) => Math.abs(a.x - p.x) + Math.abs(a.z - p.z) * 2 - (Math.abs(b.x - p.x) + Math.abs(b.z - p.z) * 2));
+    const dist = e => Math.min(...this.active.map(p => Math.abs(e.x - p.x) + Math.abs(e.z - p.z) * 2));
+    const live = this.foes.filter(e => e.hp > 0).sort((a, b) => dist(a) - dist(b));
     const melee = live.filter(e => !e.def.boss && e.def.ai !== 'ranged');
-    this.engaged = live.filter(e => e.def.boss || e.def.ai === 'ranged').concat(melee.slice(0, 2));
+    // con dos jugadores atacan hasta tres a la vez
+    this.engaged = live.filter(e => e.def.boss || e.def.ai === 'ranged').concat(melee.slice(0, this.active.length > 1 ? 3 : 2));
+  }
+  // objetivo de cada enemigo: el jugador más cercano que siga en pie
+  targetOf(e) {
+    const ok = this.active.filter(p => p.hp > 0 && p.state !== 'dead');
+    if (!ok.length) return this.player;
+    if (!e.target || !ok.includes(e.target) || this.frame % 45 === e.idx % 45)
+      e.target = ok.reduce((a, b) => Math.abs(a.x - e.x) + Math.abs(a.z - e.z) * 2 <= Math.abs(b.x - e.x) + Math.abs(b.z - e.z) * 2 ? a : b);
+    return e.target;
   }
   updFoe(e) {
-    const p = this.player, d = e.def;
+    const p = this.targetOf(e), d = e.def;
     if (e.cool > 0) e.cool--;
     if (d.boss && d.summon && !e.summoned && e.hp < e.maxHp * 0.5) { // refuerzos a mitad de vida
       e.summoned = true; d.summon.forEach((id, i) => this.queue.push({ id, delay: 30 + i * 40 }));
@@ -637,23 +672,24 @@ class Calle {
   // ── Impactos ──
   zOk(a, d) { return Math.abs(a.z - d.z) <= CALLE.ZHIT * Math.max((a.def && a.def.scale) || 1, (d.def && d.def.scale) || 1); }
   resolveHits() {
-    const p = this.player;
     const tryHit = (a, d) => {
       const hb = a.hitbox(); if (!hb || !this.zOk(a, d)) return;
       const hu = d.hurtbox(); if (!hu || !overlap(hb, hu)) return;
       const m = a.move, maxH = m.hits || 1;
       const log = d.hitLog || (d.hitLog = {});
-      const key = (a === p ? 'p' : 'e' + a.idx) + '-' + a.serial;
+      const key = (a.isPlayer ? 'p' + a.slot : 'e' + a.idx) + '-' + a.serial;
       const rec = log[key] || (log[key] = { n: 0, f: -99 });
       if (rec.n >= maxH || a.mf - rec.f < (m.hitEvery || m.every || 99)) return;
       rec.n++; rec.f = a.mf; a.hasHit = true;
       this.applyHit(a, d, m, { x: (Math.max(hb.l, hu.l) + Math.min(hb.r, hu.r)) / 2, y: (Math.max(hb.b, hu.b) + Math.min(hb.t, hu.t)) / 2, last: rec.n >= maxH });
     };
-    if (p.move && p.move.id !== 'super') for (const e of this.foes) tryHit(p, e);
-    for (const e of this.foes) tryHit(e, p);
+    for (const p of this.active) {
+      if (p.move && p.move.id !== 'super') for (const e of this.foes) tryHit(p, e);
+      for (const e of this.foes) tryHit(e, p);
+    }
   }
   applyHit(a, d, m, info) {
-    const toPlayer = d === this.player, fx = this.game.fx;
+    const toPlayer = !!d.isPlayer, fx = this.game.fx;
     const sx = info.x, sy = groundY(d.z) - info.y;
     const dir = info.dir || Math.sign(d.x - a.x) || a.facing;
     // guardia frontal (yuppie): para los golpes normales que llegan de frente
@@ -666,7 +702,7 @@ class Calle {
     // agarre enemigo: en vez de daño, sujeta al jugador
     if (m.grab && toPlayer && d.y <= 0 && !['grabbed', 'dizzy'].includes(d.state)) {
       Object.assign(d, { state: 'grabbed', by: a, mash: 0, move: null, vx: 0, vz: 0 });
-      Object.assign(a, { state: 'hold', holdT: m.grab.hold, move: null });
+      Object.assign(a, { state: 'hold', holdT: m.grab.hold, move: null, victim: d });
       this.callout('¡TE TENGO!', a); Audio8.play('block');
       return;
     }
@@ -674,13 +710,13 @@ class Calle {
     const dmg = Math.max(1, Math.round(m.dmg * pow));
     d.hp -= dmg; d.flash = 5; d.t = 0;
     d.recent = this.frame - d.lastHurtF < 45 ? d.recent + 1 : 1; d.lastHurtF = this.frame;
-    if (toPlayer) { this.meter = Math.min(200, this.meter + dmg * 0.04); a.lastConnect = this.frame; if (knockMoveEarly(m) || d.hp <= 0) this.dropWeapon(); }
+    if (toPlayer) { d.meter = Math.min(200, d.meter + dmg * 0.04); a.lastConnect = this.frame; if (knockMoveEarly(m) || d.hp <= 0) this.dropWeapon(d); }
     else {
-      this.score += dmg * 10; this.meter = Math.min(200, this.meter + dmg * 0.1 + (m.kind === 'super' ? 0 : 1));
-      if (a === this.player) a.lastConnect = this.frame;
+      this.score += dmg * 10;
+      if (a.isPlayer) { a.meter = Math.min(200, a.meter + dmg * 0.1 + (m.kind === 'super' ? 0 : 1)); a.lastConnect = this.frame; }
       this.foeHud = { f: d, t: 150 };
       // el especial cuesta un poco de vida solo si conecta (como en los clásicos)
-      if (a === this.player && a.special && a.specialPaid !== a.serial) { a.specialPaid = a.serial; a.hp = Math.max(1, a.hp - 30); }
+      if (a.isPlayer && a.special && a.specialPaid !== a.serial) { a.specialPaid = a.serial; a.hp = Math.max(1, a.hp - 30); }
     }
     const heavy = dmg >= 55 || m.kind === 'super';
     const knockMove = m.knockdown || m.knock || m.launch;
@@ -699,17 +735,17 @@ class Calle {
       d.armorF = this.frame;
       if (d.armorN < d.def.armor) { d.armorN++; fx.spark(sx, sy, '#ff9b3b', 6, 0.8); return; }
     }
-    if (d.state === 'grabbed' && !toPlayer && a !== this.player) return;
+    if (d.state === 'grabbed' && !toPlayer && !a.isPlayer) return;
     if (toPlayer && d.state === 'grabbed') d.by = null;
     d.move = null;
     if (!m.cost && m.kind !== 'super') d.facing = -dir;
     if (toPlayer && m.stun && d.hp > 0 && !knockMove) { Object.assign(d, { state: 'dizzy', dizzyT: m.stun, vx: 0, vz: 0, mash: 0 }); this.callout('¡ATONTADO!', d); return; }
     const knock = d.hp <= 0 || knockMove && info.last !== false || d.airborne || d.recent >= (toPlayer ? 4 : 6);
     if (knock) {
-      if (d.state === 'grabbed' && this.player.held === d) { this.player.held = null; this.player.state = 'idle'; }
+      for (const pl of this.players) if (d.state === 'grabbed' && pl.held === d) { pl.held = null; pl.state = 'idle'; }
       d.state = 'launched'; d.y = Math.max(d.y, 0.5);
       d.vy = (m.launch ? m.launch.vy : m.knock ? 6 : 5.5) * 0.85; d.vx = (m.launch ? m.launch.vx : 2.4) * dir * 1.15; d.vz = 0;
-      d.thrown = a.isPlayer && Math.abs(d.vx) > 2.5; d.recent = 0;
+      d.thrown = a.isPlayer && Math.abs(d.vx) > 2.5; d.thrownBy = a; d.recent = 0;
       if (d.def && d.def.boss) { d.vy *= 0.75; d.vx *= 0.6; }
     } else { d.state = 'hitstun'; d.stun = m.hitstun || 18; d.pushV = (m.push === undefined ? 3 : m.push) * dir * 0.55; d.vx = d.vz = 0; }
   }
@@ -728,14 +764,12 @@ class Calle {
       for (const o of this.foes) {
         if (o === t || !o.hurtbox() || Math.abs(o.x - t.x) > 0.25 * t.size || Math.abs(o.z - t.z) > 16) continue;
         t.thrown = false;
-        this.applyHit(this.player, o, { dmg: 30, knockdown: true, launch: { vx: 2.5, vy: 6 } }, { x: o.x, y: 0.45 * o.size });
+        this.applyHit(t.thrownBy || this.player, o, { dmg: 30, knockdown: true, launch: { vx: 2.5, vy: 6 } }, { x: o.x, y: 0.45 * o.size });
       }
     }
   }
   pickItems() {
-    const p = this.player;
-    if (!p.free) return;
-    for (const it of this.items) {
+    for (const p of this.active) if (p.free) for (const it of this.items) {
       if (it.taken || Math.abs(it.x - p.x) > 26 || Math.abs(it.z - p.z) > 14) continue;
       const def = CALLE_ITEMS[it.kind];
       if (def.weapon) {
@@ -753,15 +787,18 @@ class Calle {
     for (const e of this.foes) if (e.state === 'dead') e.deadT = (e.deadT || 0) + 1;
     this.foes = this.foes.filter(e => !(e.state === 'dead' && e.deadT > 40));
   }
-  playerDown() {
-    const p = this.player;
-    if (this.lives <= 0) { if (this.phase !== 'over') { this.phase = 'over'; this.pt = 0; this.cont = 600; Audio8.say('Fin de la partida'); } return; }
-    this.lives--;
+  playerDown(p) {
+    if (p.lives <= 0) {
+      p.out = true; p.state = 'out'; p.held = null;
+      if (!this.active.length && this.phase !== 'over') { this.phase = 'over'; this.pt = 0; this.cont = 600; Audio8.say('Fin de la partida'); }
+      return;
+    }
+    p.lives--;
     Object.assign(p, { hp: p.maxHp, state: 'idle', t: 0, invuln: 150, y: 0, vx: 0, vy: 0, move: null, by: null });
     this.game.flashT = 10; this.shake(6); Audio8.play('superStart');
     this.game.fx.word(p.x, groundY(p.z) - 120, '¡OTRA VIDA!', '#f4c20d', 12);
     for (const e of this.foes) {
-      if (e.state === 'hold') e.state = 'idle';
+      if (e.state === 'hold' && e.victim === p) e.state = 'idle';
       if (e.hp > 0 && Math.abs(e.x - p.x) < 160) { e.state = 'launched'; e.y = 0.5; e.vy = 5; e.vx = 3.5 * (Math.sign(e.x - p.x) || 1); e.move = null; }
     }
     this.shots = []; this.beam = null;
@@ -770,9 +807,8 @@ class Calle {
     const i = this.game.menuInput();
     if (this.cont > 0) this.cont--;
     if (i.ok && this.pt > 40 && this.cont > 0) {
-      const p = this.player;
-      this.lives = 2; this.score = 0; this.phase = 'play'; this.pt = 0;
-      Object.assign(p, { hp: p.maxHp, state: 'idle', t: 0, invuln: 150, move: null });
+      this.score = 0; this.phase = 'play'; this.pt = 0;
+      for (const p of this.players) Object.assign(p, { lives: 2, out: false, hp: p.maxHp, state: 'idle', t: 0, invuln: 150, move: null, x: this.camX + 120 + p.slot * 60, y: 0 });
       Audio8.play('coin'); return;
     }
     if ((i.ok && this.cont <= 0) || i.back || this.cont <= 0 && this.pt > 900) { Audio8.music('menu'); this.game.go('menu'); }
@@ -789,7 +825,7 @@ class Calle {
     for (const pr of this.props) drawProp(ctx, pr, this.frame);
     if (this.atm) drawATM(ctx, this.atm, this.frame);
     if (this.beam) this.drawBeam(ctx);
-    const all = [this.player, ...this.foes].sort((a, b) => a.z - b.z);
+    const all = [...this.active, ...this.foes].sort((a, b) => a.z - b.z);
     for (const b of all) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(b.x, groundY(b.z) + 1, 0.18 * b.hpx * Math.max(0.5, 1 - b.y / 200), 5, 0, 0, 7); ctx.fill(); }
     if (this.superFx > 0) this.drawSuperFx(ctx);
     for (const b of all) b.isPlayer ? this.drawPlayer(ctx, b) : this.drawThug(ctx, b);
@@ -833,7 +869,7 @@ class Calle {
     }
   }
   drawSuperFx(ctx) {
-    const p = this.player, k = this.superFx / 70;
+    const p = this.superBy || this.player, k = this.superFx / 70;
     ctx.save();
     ctx.globalAlpha = Math.min(1, k * 2) * 0.55;
     const g = ctx.createLinearGradient(0, 0, 0, H);
@@ -845,20 +881,25 @@ class Calle {
     ctx.restore();
     if (this.frame % 3 === 0) this.game.fx.icons(this.camX + RNG() * W, groundY(RNG() * CALLE.ZMAX) - 60, { euro: 'euro', ai: 'digit', wave: 'bubble', metal: 'bolt' }[p.ch.moves.super.fx] || 'star', 1);
   }
+  drawPlayerHUD(ctx, p, y0) {
+    const y = y0;
+    ctx.fillStyle = 'rgba(12,7,24,0.78)'; ctx.fillRect(6, y, 250, 46);
+    drawPortrait(ctx, p.look, 26, y + 23, 38, 1, this.frame, p.hp <= 0 || p.out ? 'ko' : p.state === 'hitstun' ? 'hurt' : 'normal');
+    txt(ctx, (this.players.length > 1 ? (p.slot + 1) + 'P ' : '') + p.ch.name, 50, y + 8, 7, p.ch.color, 'left');
+    txt(ctx, p.out ? 'FUERA' : 'x' + p.lives, 250, y + 8, 7, '#fff', 'right');
+    hpBar(ctx, 50, y + 15, 196, 9, p.out ? 0 : p.hp / p.maxHp, '#f4c20d');
+    // barra de super: se llena golpeando; SP con barra llena = super
+    ctx.fillStyle = '#1b1233'; ctx.fillRect(50, y + 28, 196, 5);
+    ctx.fillStyle = p.meter >= 100 && Math.floor(this.frame / 8) % 2 ? '#ffffff' : '#5effa0'; ctx.fillRect(50, y + 28, 196 * Math.min(1, p.meter / 100), 5);
+    if (p.meter > 100) { ctx.fillStyle = '#ff5b7a'; ctx.fillRect(50, y + 28, 196 * (p.meter - 100) / 100, 5); }
+    txt(ctx, 'SUPER', 50, y + 39, 5, p.meter >= 100 ? '#5effa0' : '#8a80b0', 'left', false);
+    if (p.weapon) txt(ctx, CALLE_WEAPONS[p.weapon.kind].name + (CALLE_WEAPONS[p.weapon.kind].throw ? '' : ' x' + p.weapon.uses), 128, y + 39, 5, '#9bf0ff', 'center', false);
+  }
   drawHUD(ctx) {
     const p = this.player;
-    ctx.fillStyle = 'rgba(12,7,24,0.78)'; ctx.fillRect(6, 6, 250, 46);
-    drawPortrait(ctx, p.look, 26, 29, 38, 1, this.frame, p.hp <= 0 ? 'ko' : p.state === 'hitstun' ? 'hurt' : 'normal');
-    txt(ctx, p.ch.name, 50, 14, 7, p.ch.color, 'left');
-    txt(ctx, 'x' + this.lives, 250, 14, 7, '#fff', 'right');
-    hpBar(ctx, 50, 21, 196, 9, p.hp / p.maxHp, '#f4c20d');
-    // barra de super: se llena golpeando; SP con barra llena = super
-    ctx.fillStyle = '#1b1233'; ctx.fillRect(50, 34, 196, 5);
-    ctx.fillStyle = this.meter >= 100 && Math.floor(this.frame / 8) % 2 ? '#ffffff' : '#5effa0'; ctx.fillRect(50, 34, 196 * Math.min(1, this.meter / 100), 5);
-    if (this.meter > 100) { ctx.fillStyle = '#ff5b7a'; ctx.fillRect(50, 34, 196 * (this.meter - 100) / 100, 5); }
-    txt(ctx, 'SUPER', 50, 45, 5, this.meter >= 100 ? '#5effa0' : '#8a80b0', 'left', false);
+    this.players.forEach((pl, i) => this.drawPlayerHUD(ctx, pl, 6 + i * 50));
     txt(ctx, String(this.score).padStart(7, '0'), 246, 45, 6, '#fff', 'right', false);
-    if (p.weapon) txt(ctx, CALLE_WEAPONS[p.weapon.kind].name + (CALLE_WEAPONS[p.weapon.kind].throw ? '' : ' x' + p.weapon.uses), 128, 45, 5, '#9bf0ff', 'center', false);
+    if (this.players.length < 2 && ['play', 'intro'].includes(this.phase) && Math.floor(this.frame / 30) % 2) txt(ctx, '2P: PULSA START (NUM ENTER)', 131, 60, 5, '#9bf0ff');
     if (this.phase === 'play' || this.phase === 'intro') {
       const sec = Math.ceil(this.time / 60);
       ctx.fillStyle = 'rgba(12,7,24,0.78)'; ctx.fillRect(W / 2 - 22, 6, 44, 24);
@@ -898,7 +939,7 @@ class Calle {
     if (this.phase === 'ending') {
       ctx.fillStyle = 'rgba(5,0,20,0.7)'; ctx.fillRect(0, 0, W, H);
       comicText(ctx, '¡MÁLAGA ESTÁ A SALVO!', W / 2, 110, 18, '#f4c20d');
-      txt(ctx, `${p.ch.name} limpia las calles · PUNTOS ${this.score}`, W / 2, 146, 8, '#fff');
+      txt(ctx, `${this.players.map(q => q.ch.name).join(' Y ')} ${this.players.length > 1 ? 'limpian' : 'limpia'} las calles · PUNTOS ${this.score}`, W / 2, 146, 8, '#fff');
       if (this.pt > 120) txt(ctx, 'PULSA ENTER', W / 2, 180, 8, '#bbb');
     }
     if (this.phase === 'over') {

@@ -436,6 +436,23 @@ async function main() {
     await p.close();
   });
 
+  await test('Modo Calle cooperativo: el 2P se une con su START y los dos pegan', async open => {
+    const p = await open();
+    await toFight(p, 1, []);
+    await p.tap('KeyJ'); await p.step(100);
+    await p.tap('NumpadEnter');
+    assert(await p.g(() => SA.game.calle.players.length === 2 && SA.game.screen === 'calle'), 'el 2P no se une');
+    await p.g(() => { const c = SA.game.calle; c.queue.push({ id: 'macarra', delay: 0 }, { id: 'macarra', delay: 0 }); c.lockX = c.camX; });
+    await p.step(3);
+    await p.g(() => { const c = SA.game.calle; c.foes.forEach((e, i) => { const pl = c.players[i]; e.entered = true; e.x = pl.x + 55; e.z = pl.z; e.cool = 999; e.wait = 999; pl.facing = 1; }); });
+    await p.tap('KeyJ', 2, 12); await p.tap('Numpad1', 2, 12);
+    const hits = await p.g(() => SA.game.calle.foes.map(e => e.hp < e.maxHp));
+    assert(hits.every(Boolean), 'no pegan los dos: ' + JSON.stringify(hits));
+    await p.shot('t22-calle-coop');
+    assert(!p.errs.length && !(await p.g(() => SA.game.errors.length)), 'errores: ' + p.errs.join(' | '));
+    await p.close();
+  });
+
   await test('Controles táctiles: se muestran y el botón P pulsa', async open => {
     const p = await open('&touch=1');
     assert(await p.locator('#touch').isVisible(), 'overlay táctil oculto');

@@ -17,4 +17,5 @@ Todo el arte sale de nuestros prompts y todo el código es propio.
 | Vida extra por puntos | Una cada 50 000 |
 | Fase de bonus | "El cajero se ha vuelto loco": 30 s para reventar un cajero que escupe billetes |
 | Enemigos con papeles distintos | 13 enemigos originales en `js/calle-roster.js` (carga, agarre, distancia, armadura, guardia, aturdimiento…) |
+| Cooperativo para 2 jugadores | El 2P se une en cualquier momento con START; vidas y barra de super por jugador, puntuación de equipo |
 | Jefe por fase con patrón propio | Rey del Chiringuito, Campeona de los Recreativos y Director de Zona |

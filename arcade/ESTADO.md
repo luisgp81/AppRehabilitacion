@@ -2,7 +2,7 @@
 
 Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e217ca11-w57jdl`. Todo el juego vive en `arcade/`.
 
-## Hecho y probado (22 pruebas del juego + prueba del pipeline, todas en verde)
+## Hecho y probado (23 pruebas del juego + prueba del pipeline, todas en verde)
 
 **Juego jugable en el navegador** (`arcade/index.html`)
 - 3 luchadores: Luis, Juan Carlos y Sebas, con sprites recortados de la ilustración de referencia y animados con rig esquelético (WebGL, ~1 ms/frame; modo Canvas 2D de respaldo).
@@ -35,6 +35,9 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 - Jugador: agarre al chocar con un enemigo (P = rodillazo, atrás + P = lanzar), combo, salto, especiales y super.
 - Además: ataque hacia atrás (P + K), objetos rompibles con premio, armas (bate, guitarra y móvil lanzable), tiempo por tramo, vida extra cada 50 000 puntos y bonus del cajero entre fases.
   Las decisiones y su origen de género están en `tools/diseno-calle.md`: solo ideas, ningún recurso ajeno.
+- Cooperativo para 2 jugadores: el 2P entra en cualquier momento con su START (Intro del teclado numérico o START del segundo mando) y juega con el siguiente personaje.
+  Cada uno tiene su vida, sus vidas extra y su barra de super; la puntuación es de equipo.
+  La cámara no deja atrás a ninguno, cada enemigo persigue al jugador más cercano y con dos jugadores atacan hasta tres a la vez.
 - Arte provisional: los enemigos usan el atlas de un protagonista con la ropa recoloreada y los fondos están dibujados por código.
   En cuanto se importa el arte propio, el juego lo usa solo (`e_<id>` y `assets/stages/<fase>/`).
 - Prompts para ChatGPT en `tools/prompts-calle.md`: 29 hojas de enemigos, 15 paneles de fondo y 3 hojas de agarres.
@@ -66,7 +69,7 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 ## Comprobar que todo sigue bien
 
 ```bash
-node arcade/tests/game.test.cjs       # juego (22 pruebas)
+node arcade/tests/game.test.cjs       # juego (23 pruebas)
 node arcade/tests/pipeline.test.cjs   # pipeline de fotogramas
 npx http-server -p 8080 .             # y abrir http://localhost:8080/arcade/
 ```

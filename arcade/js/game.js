@@ -310,7 +310,8 @@ class Game {
   beginCalle(idx) { this.calle = new Calle(this, idx); Audio8.music('fight'); this.go('calle'); }
   upd_calle() {
     const c = this.calle;
-    if ((this.ctrls[0].pressed.start || this.menuInput().esc) && c.phase !== 'over' && c.phase !== 'clear') { this.paused = { idx: 0 }; this.pauseFrom = 'calle'; Audio8.play('select'); this.go('pause'); return; }
+    if (c.tryJoin()) return; // el jugador 2 se une con su START
+    if ((this.ctrls[0].pressed.start || (c.players.length > 1 && this.ctrls[1].pressed.start) || this.menuInput().esc) && c.phase !== 'over' && c.phase !== 'clear') { this.paused = { idx: 0 }; this.pauseFrom = 'calle'; Audio8.play('select'); this.go('pause'); return; }
     c.update();
   }
   draw_calle(ctx) { this.calle.draw(ctx); }
