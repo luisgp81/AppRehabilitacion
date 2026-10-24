@@ -102,7 +102,7 @@ const FrameSprites = (() => {
       case 'getup': if (has('getup')) return ['getup', Math.min(A.getup.frames.length - 1, Math.floor(f.t / 6))]; break;
       case 'ko': if (has('ko')) return ['ko', f.airborne ? 0 : 1]; break;
       // modo Calle: agarres y aturdido
-      case 'grab': if (has('grab')) return f.kneeT > 0 && has('knee') ? ['knee', Math.min(A.knee.frames.length - 1, 3 - Math.ceil(f.kneeT / 4))] : ['grab', 1]; return f.kneeT > 0 && has('sk') ? ['sk', 2] : has('lp') ? ['lp', 1] : null;
+      case 'grab': if (has('grab')) return f.kneeT > 0 && has('knee') ? ['knee', Math.max(0, Math.min(A.knee.frames.length - 1, Math.floor((14 - f.kneeT) / 14 * A.knee.frames.length)))] : ['grab', Math.min(A.grab.frames.length - 1, Math.floor(f.grabT / 4))]; return f.kneeT > 0 && has('sk') ? ['sk', 2] : has('lp') ? ['lp', 1] : null;
       case 'grabbed': case 'dizzy': if (has('hit')) return ['hit', f.state === 'dizzy' ? Math.floor(f.t / 12) % 2 : 1]; break;
       case 'win': return loop('win', f.t);
       case 'intro': return loop('intro', f.t) || loop('idle', f.t);
