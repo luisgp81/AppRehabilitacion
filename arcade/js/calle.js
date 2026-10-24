@@ -982,6 +982,8 @@ function phaseFrame(mf, m, n) {
   if (n <= 1) return 0;
   const a = Math.max(1, Math.round(n * 0.35)), b = Math.max(a + 1, Math.round(n * 0.65));
   if (mf < m.startup) return Math.floor(mf / m.startup * a);
+  // golpes múltiples: recorren toda la fila durante el impacto (cada puñetazo de la ráfaga se ve)
+  if (mf < m.startup + m.active && m.hits > 1 && n > 3) return 1 + Math.floor((mf - m.startup) / m.active * (n - 2)) % (n - 2);
   if (mf < m.startup + m.active) return Math.min(b - 1, a + Math.floor((mf - m.startup) / m.active * (b - a)));
   return Math.min(n - 1, b + Math.floor((mf - m.startup - m.active) / Math.max(1, m.recovery) * (n - b)));
 }
