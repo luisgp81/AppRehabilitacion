@@ -6,27 +6,42 @@ const FrameSprites = (() => {
   const MOVE_ANIM = { lp: 'lp', sk: 'sk', cp: 'cp', ck: 'ck', jp: 'jp', jk: 'jk', proj: 'proj', dp: 'dp', rush: 'rush', super: 'super', remate: 'combo', super2: 'super2', ultra: 'ultra', back: 'sk', w_bate: 'lp', w_guitarra: 'combo', w_movil: 'proj' };
   // sustitutos mientras falte la hoja de una animación (el rig desentona con el arte nuevo)
   const FALLBACK = { combo: 'sk', super2: 'rush', ultra: 'super', lp: 'super2', cp: 'super2', sk: 'rush', ck: 'rush', jp: 'dp', jk: 'dp' };
-  function load(onDone) {
+  // Cada atlas son varias páginas webp (atlas-0.webp, atlas-1.webp…). Al arrancar solo se cargan los
+  // protagonistas; los enemigos del modo Calle se piden al empezar cada fase (ensure) para ahorrar memoria.
+  const pending = {};
+  function loadSet(id, cb) {
     const idx = window.FRAME_INDEX || {};
-    const ids = Object.keys(idx);
-    if (!ids.length) { if (onDone) onDone(); return; }
-    let left = ids.length;
-    for (const id of ids) {
+    if (sets[id] || !idx[id]) { if (cb) cb(); return; }
+    if (pending[id]) { if (cb) pending[id].push(cb); return; }
+    pending[id] = cb ? [cb] : [];
+    const n = idx[id].pages || 1, imgs = [];
+    let left = n, ok = true;
+    const done = () => { if (--left) return; if (ok) sets[id] = { meta: idx[id], imgs }; const cbs = pending[id]; delete pending[id]; cbs.forEach(f => f()); };
+    for (let i = 0; i < n; i++) {
       const img = new Image();
-      img.onload = () => { sets[id] = { meta: idx[id], img }; if (--left === 0 && onDone) onDone(); };
-      img.onerror = () => { if (--left === 0 && onDone) onDone(); };
-      img.src = `assets/frames/${id}/atlas.png`;
+      img.onload = done; img.onerror = () => { ok = false; done(); };
+      img.src = `assets/frames/${id}/atlas-${i}.webp`;
+      imgs.push(img);
     }
   }
+  function ensure(ids, onDone) {
+    let left = ids.length;
+    if (!left) { if (onDone) onDone(); return; }
+    for (const id of ids) loadSet(id, () => { if (--left === 0 && onDone) onDone(); });
+  }
+  function load(onDone) { ensure(Object.keys(window.FRAME_INDEX || {}).filter(id => !id.startsWith('e_')), onDone); }
+  const pageOf = (set, fr) => set.imgs[fr.r[4] || 0];
   // Color alternativo (combate espejo): los azules (traje, vaqueros, chaqueta) pasan a gris marengo y
   // lo demás se respeta; girar el tono de todo deja la piel verde. Se calcula una vez por atlas; si el
   // navegador no deja leer los píxeles (file://), se usa el filtro de tono sobre todo el sprite.
-  function altImage(set) {
-    if (set.alt !== undefined) return set.alt;
-    set.alt = null;
+  function altImage(set, page) {
+    const alts = set.alts || (set.alts = []);
+    if (alts[page] !== undefined) return alts[page];
+    alts[page] = null;
+    const src = set.imgs[page];
     try {
-      const c = document.createElement('canvas'); c.width = set.img.width; c.height = set.img.height;
-      const g = c.getContext('2d'); g.drawImage(set.img, 0, 0);
+      const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+      const g = c.getContext('2d'); g.drawImage(src, 0, 0);
       const d = g.getImageData(0, 0, c.width, c.height), a = d.data;
       for (let i = 0; i < a.length; i += 4) {
         if (!a[i + 3]) continue;
@@ -35,9 +50,9 @@ const FrameSprites = (() => {
         const y = 0.3 * r + 0.59 * gg + 0.11 * b, v = Math.min(255, y * 1.25 + 8);
         a[i] = v; a[i + 1] = v; a[i + 2] = Math.min(255, v * 1.08);
       }
-      g.putImageData(d, 0, 0); set.alt = c;
-    } catch (e) { set.alt = null; }
-    return set.alt;
+      g.putImageData(d, 0, 0); alts[page] = c;
+    } catch (e) { alts[page] = null; }
+    return alts[page];
   }
   // Ropa de otro color (enemigos provisionales del modo Calle): los azules del traje pasan al color pedido
   // conservando el sombreado. Se cachea por fotograma, no por atlas entero, para no gastar memoria.
@@ -49,7 +64,7 @@ const FrameSprites = (() => {
     try {
       const [sx, sy, sw, sh] = fr.r;
       const c = document.createElement('canvas'); c.width = sw; c.height = sh;
-      const g = c.getContext('2d'); g.drawImage(set.img, sx, sy, sw, sh, 0, 0, sw, sh);
+      const g = c.getContext('2d'); g.drawImage(pageOf(set, fr), sx, sy, sw, sh, 0, 0, sw, sh);
       const d = g.getImageData(0, 0, sw, sh), a = d.data;
       const tr = parseInt(col.slice(1, 3), 16), tg = parseInt(col.slice(3, 5), 16), tb = parseInt(col.slice(5, 7), 16);
       for (let i = 0; i < a.length; i += 4) {
@@ -125,10 +140,11 @@ const FrameSprites = (() => {
     ctx.save();
     ctx.translate(x, gy); ctx.scale(facing * k, k);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    let img = set.img, rx = sx, ry = sy;
+    const base = pageOf(set, fr);
+    let img = base, rx = sx, ry = sy;
     const tinted = opts.tint && tintFrame(set, fr, opts.tint);
     if (tinted) { img = tinted; rx = 0; ry = 0; }
-    else if (opts.alt) { img = altImage(set) || set.img; if (img === set.img && 'filter' in ctx) ctx.filter = 'hue-rotate(150deg) saturate(1.2)'; }
+    else if (opts.alt) { img = altImage(set, fr.r[4] || 0) || base; if (img === base && 'filter' in ctx) ctx.filter = 'hue-rotate(150deg) saturate(1.2)'; }
     ctx.drawImage(img, rx, ry, sw, sh, -fr.ax, -fr.ay, sw, sh);
     if (opts.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.45; ctx.drawImage(img, rx, ry, sw, sh, -fr.ax, -fr.ay, sw, sh); }
     ctx.restore();
@@ -143,7 +159,7 @@ const FrameSprites = (() => {
     ctx.save();
     ctx.translate(x, gy); ctx.scale(facing * k, k);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    let img = set.img, rx = sx, ry = sy;
+    let img = pageOf(set, fr), rx = sx, ry = sy;
     const tinted = opts.tint && tintFrame(set, fr, opts.tint);
     if (tinted) { img = tinted; rx = 0; ry = 0; }
     ctx.drawImage(img, rx, ry, sw, sh, -fr.ax, -fr.ay, sw, sh);
@@ -151,5 +167,5 @@ const FrameSprites = (() => {
     ctx.restore();
     return true;
   }
-  return { load, draw, drawFrame, has: id => !!sets[id], sets, choose };
+  return { load, ensure, draw, drawFrame, has: id => !!sets[id], sets, choose };
 })();

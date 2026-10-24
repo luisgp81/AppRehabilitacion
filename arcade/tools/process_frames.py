@@ -5,7 +5,7 @@
   usa BiRefNet (rembg) si está instalado
 - separa los fotogramas por columnas vacías (o reparto uniforme si no coinciden con los esperados)
 - normaliza la escala de cada animación respecto a la altura de 'idle' y alinea pies / centro del torso
-- empaqueta todo en assets/frames/<id>/atlas.png + atlas.json
+- empaqueta todo en assets/frames/<id>/atlas-<n>.webp (páginas de 2048x2048) + atlas.json
 
 Uso: python3 process_frames.py [--char luis] [--height 320]
 """
@@ -145,14 +145,23 @@ def anchor(fr):
     return cx, float(h)
 
 
-def pack(frames, maxw=2048):
-    x = y = rowh = 0; rects = []
+def pack(frames, maxw=2048, maxh=2048):
+    """Empaqueta en páginas de como mucho 2048x2048: los móviles (sobre todo iOS) no dibujan imágenes de más
+    de ~16 megapíxeles y cada página ocupa poca memoria al decodificarse."""
+    pages, rects = [[]], []
+    x = y = rowh = 0
     for f in frames:
         if x + f.width > maxw: x, y, rowh = 0, y + rowh + 2, 0
-        rects.append((x, y, f.width, f.height)); x += f.width + 2; rowh = max(rowh, f.height)
-    atlas = Image.new('RGBA', (maxw, y + rowh), (0, 0, 0, 0))
-    for f, (x0, y0, _, _) in zip(frames, rects): atlas.paste(f, (x0, y0))
-    return atlas, rects
+        if y + f.height > maxh: pages.append([]); x = y = rowh = 0
+        rects.append((x, y, f.width, f.height, len(pages) - 1)); pages[-1].append((f, x, y))
+        x += f.width + 2; rowh = max(rowh, f.height)
+    out = []
+    for items in pages:
+        h = max(y0 + f.height for f, _, y0 in items)
+        im = Image.new('RGBA', (maxw, h), (0, 0, 0, 0))
+        for f, x0, y0 in items: im.paste(f, (x0, y0))
+        out.append(im)
+    return out, rects
 
 
 def process(cid, H):
@@ -201,14 +210,16 @@ def process(cid, H):
             k = (len(out) - 1) / max(1, ANIMS[an][0] - 1)
             act = sorted({min(len(out) - 1, round(i * k)) for i in act})
         meta[an] = {'frames': out, 'fps': LOOP.get(an), 'active': act}
-    atlas, rects = pack(allf)
+    pages, rects = pack(allf)
     d = OUT / cid; d.mkdir(parents=True, exist_ok=True)
-    atlas.save(d / 'atlas.png', optimize=True)
+    for old in list(d.glob('atlas*.png')) + list(d.glob('atlas-*.webp')): old.unlink()
+    for i, im in enumerate(pages): im.save(d / f'atlas-{i}.webp', quality=90, alpha_quality=100, method=6)
     for an in meta:
         for fr in meta[an]['frames']:
-            fr['r'] = rects[fr.pop('i')]
-    (d / 'atlas.json').write_text(json.dumps({'height': H, 'anims': meta}, separators=(',', ':')))
-    print(f'{cid}: {len(allf)} fotogramas en {len(meta)} animaciones → {d / "atlas.png"} ({atlas.size[0]}x{atlas.size[1]})')
+            fr['r'] = list(rects[fr.pop('i')])
+    (d / 'atlas.json').write_text(json.dumps({'height': H, 'pages': len(pages), 'anims': meta}, separators=(',', ':')))
+    kb = sum((d / f'atlas-{i}.webp').stat().st_size for i in range(len(pages))) // 1024
+    print(f'{cid}: {len(allf)} fotogramas en {len(meta)} animaciones → {len(pages)} páginas webp ({kb} KB)')
     return True
 
 

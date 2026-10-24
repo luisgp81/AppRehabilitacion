@@ -16,7 +16,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SHOTS = process.env.SHOTS || '';
 
 function serve() {
-  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json' };
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
   const srv = http.createServer((req, res) => {
     const u = decodeURIComponent(req.url.split('?')[0]);
     const f = path.join(ROOT, u === '/' ? 'index.html' : u);
@@ -451,6 +451,22 @@ async function main() {
     await p.shot('t22-calle-coop');
     assert(!p.errs.length && !(await p.g(() => SA.game.errors.length)), 'errores: ' + p.errs.join(' | '));
     await p.close();
+  });
+
+  await test('App instalable: manifiesto, service worker y arranque sin conexión', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const p = await ctx.newPage();
+    await p.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+    await p.goto(base);
+    const man = await p.evaluate(async () => { const l = document.querySelector('link[rel=manifest]'); const r = await fetch(l.href); return r.ok && (await r.json()); });
+    assert(man && man.display === 'fullscreen' && man.orientation === 'landscape' && man.icons.some(i => i.sizes === '512x512'), 'manifiesto incompleto');
+    await p.evaluate(() => navigator.serviceWorker.ready);
+    await p.waitForFunction(() => window.SA && SA.ready, null, { timeout: 20000 });
+    await p.reload(); await p.waitForFunction(() => navigator.serviceWorker.controller && window.SA && SA.ready, null, { timeout: 20000 });
+    await ctx.setOffline(true);
+    await p.reload(); await p.waitForFunction(() => window.SA && SA.ready, null, { timeout: 20000 });
+    assert(await p.evaluate(() => SA.frames.includes('luis') && SA.game.screen === 'title'), 'no arranca sin conexión');
+    await ctx.close();
   });
 
   await test('Controles táctiles: se muestran y el botón P pulsa', async open => {

@@ -70,7 +70,7 @@ im.convert('RGB').save(${JSON.stringify(out)})`]);
       results.push([`   ↳ ${Object.values(counts).reduce((a, b) => a + b, 0)} fotogramas en ${Object.keys(counts).length} animaciones`, true]);
     });
     const { chromium } = loadPlaywright();
-    const types = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.json': 'application/json' };
+    const types = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
     const srv = http.createServer((req, res) => {
       let u = decodeURIComponent(req.url.split('?')[0]);
       let f = u === '/js/frame-index.js' ? path.join(TMP, 'frame-index.js') : u.startsWith('/assets/frames/') ? path.join(TMP, 'frames', u.slice(15)) : path.join(ROOT, u === '/' ? 'index.html' : u);

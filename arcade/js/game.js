@@ -972,6 +972,17 @@ function drawPortrait(ctx, L, cx, cy, size, facing, t, expr = 'normal') {
   const touchUI = document.getElementById('touch');
   if (PARAMS.has('touch') || (window.matchMedia && matchMedia('(pointer: coarse)').matches)) touchUI.classList.add('show');
   canvas.addEventListener('pointerdown', () => { Audio8.unlock(); if (game.screen === 'title') game.tapped = true; });
+  // Móvil: al primer toque, pantalla completa y horizontal (si el navegador lo permite)
+  if (!TEST && window.matchMedia && matchMedia('(pointer: coarse)').matches) {
+    const goFull = () => {
+      const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+      const lock = () => { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => {}); } catch (e) { /* sin bloqueo */ } };
+      if (req && !document.fullscreenElement) { try { const r = req.call(el); if (r && r.then) r.then(lock, () => {}); else lock(); } catch (e) { /* no disponible */ } } else lock();
+    };
+    window.addEventListener('pointerdown', goFull, { once: true });
+  }
+  // App instalable y sin conexión
+  if (!TEST && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
   window.addEventListener('error', e => game.errors.push(String(e.message)));
 
   window.SA.ready = false;

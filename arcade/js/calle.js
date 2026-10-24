@@ -146,6 +146,7 @@ class Thug extends Brawler {
     super.update();
     if (this.state === 'guard' && --this.guardT <= 0) { this.state = 'idle'; this.t = 0; this.guardHits = 0; }
     if (this.fade > 0) this.fade--;
+    if (this.fade > 0 && !(this.state === 'attack' && this.move && this.move.tele)) this.fade = 0; // golpeado en pleno teletransporte
   }
   stepMove() {
     const m = this.move, f = this.facing, p = this.w.player;
@@ -217,6 +218,9 @@ class Calle {
   startStage(i) {
     const st = this.stage = Object.assign({}, CALLE_STAGES[i]);
     this.stageI = i;
+    // arte de los enemigos de esta fase (y de los refuerzos de su jefe); mientras carga se usa el provisional
+    const ids = new Set(st.waves.flatMap(w => w.foes).flatMap(id => [id, ...(ROSTER[id].summon || [])]));
+    FrameSprites.ensure([...ids].map(id => 'e_' + id));
     if (StageArt.ok(st.id)) st.len = StageArt.len(st.id);
     st.bossX = st.waves[st.waves.length - 1].at * st.len;
     this.camX = 0; this.lockX = null; this.waveI = 0; this.queue = []; this.foes = []; this.engaged = []; this.shots = [];
@@ -850,7 +854,7 @@ class Calle {
   }
   drawThug(ctx, e) {
     if (e.state === 'dead' && Math.floor(e.deadT / 3) % 2) return;
-    if (e.fade > 0) ctx.globalAlpha = Math.abs(e.fade - e.move.startup / 2) / (e.move.startup / 2);
+    if (e.fade > 0 && e.move && e.move.tele) ctx.globalAlpha = Math.abs(e.fade - e.move.startup / 2) / (e.move.startup / 2);
     const [set, anim, i] = thugFrame(e);
     FrameSprites.drawFrame(ctx, set, anim, i, e.x, groundY(e.z) - e.y, e.facing, { px: e.size, tint: set === e.def.base ? e.def.tint : null, flash: e.flash > 0 });
     ctx.globalAlpha = 1;
@@ -899,7 +903,7 @@ class Calle {
     const p = this.player;
     this.players.forEach((pl, i) => this.drawPlayerHUD(ctx, pl, 6 + i * 50));
     txt(ctx, String(this.score).padStart(7, '0'), 246, 45, 6, '#fff', 'right', false);
-    if (this.players.length < 2 && ['play', 'intro'].includes(this.phase) && Math.floor(this.frame / 30) % 2) txt(ctx, '2P: PULSA START (NUM ENTER)', 131, 60, 5, '#9bf0ff');
+    if (this.players.length < 2 && !document.getElementById('touch').classList.contains('show') && ['play', 'intro'].includes(this.phase) && Math.floor(this.frame / 30) % 2) txt(ctx, '2P: PULSA START (NUM ENTER)', 131, 60, 5, '#9bf0ff');
     if (this.phase === 'play' || this.phase === 'intro') {
       const sec = Math.ceil(this.time / 60);
       ctx.fillStyle = 'rgba(12,7,24,0.78)'; ctx.fillRect(W / 2 - 22, 6, 44, 24);

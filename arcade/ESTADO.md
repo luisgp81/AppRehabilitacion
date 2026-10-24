@@ -2,7 +2,7 @@
 
 Punto de partida para retomar el trabajo desde cualquier sesión. Rama: `ccr-e217ca11-w57jdl`. Todo el juego vive en `arcade/`.
 
-## Hecho y probado (23 pruebas del juego + prueba del pipeline, todas en verde)
+## Hecho y probado (24 pruebas del juego + prueba del pipeline, todas en verde)
 
 **Juego jugable en el navegador** (`arcade/index.html`)
 - 3 luchadores: Luis, Juan Carlos y Sebas, con sprites recortados de la ilustración de referencia y animados con rig esquelético (WebGL, ~1 ms/frame; modo Canvas 2D de respaldo).
@@ -45,6 +45,15 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
   - Enemigos: `python3 tools/chatgpt_sheets.py import E-MACARRA-A hoja.png` y después `python3 tools/process_frames.py`.
   - Fondos: `python3 tools/chatgpt_sheets.py import F1-P1 panel.png`.
 
+**Arte completo del modo Calle**: 13 enemigos y 3 jefes con arte propio, y fondos pintados en las 3 fases (la fase 2 tiene 4 paneles, por eso es más corta).
+Partidas completas con un jugador automático: Juan Carlos termina las 3 fases y el final, y Sebas llega al jefe final.
+
+**App para móvil** (PWA): `manifest.webmanifest`, `sw.js` e iconos en `assets/icons/`.
+- Se instala desde el navegador («Añadir a pantalla de inicio»), funciona sin conexión y se abre a pantalla completa en horizontal.
+- Atlas en páginas webp de 2048x2048 (24 MB en vez de 100): iOS no dibuja imágenes de más de unos 16 MP.
+- Los enemigos de cada fase se cargan al empezarla.
+- Para instalarlo hay que publicarlo en una web con HTTPS: GitHub Pages, Netlify o similar, subiendo la carpeta `arcade/`.
+
 ## Pendiente
 
 1. **Juan Carlos**: completo: H01–H10 (162 fotogramas).
@@ -69,7 +78,7 @@ En el combate espejo, el segundo Luis lleva traje gris marengo y conserva la pie
 ## Comprobar que todo sigue bien
 
 ```bash
-node arcade/tests/game.test.cjs       # juego (23 pruebas)
+node arcade/tests/game.test.cjs       # juego (24 pruebas)
 node arcade/tests/pipeline.test.cjs   # pipeline de fotogramas
 npx http-server -p 8080 .             # y abrir http://localhost:8080/arcade/
 ```
