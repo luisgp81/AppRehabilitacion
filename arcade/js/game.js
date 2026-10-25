@@ -370,6 +370,7 @@ class Game {
 
   // ── COMBATE ──
   startRound() {
+    this.zoom = null; FxPro.ghosts = [];
     this.f1.resetRound(220, 1); this.f2.resetRound(420, -1);
     this.projectiles = []; this.fx.list = [];
     this.time = (this.mode === 'training' || !this.settings.time) ? Infinity : this.settings.time * 60;
@@ -455,6 +456,7 @@ class Game {
   endCombo(def) { /* el banner de combo caduca solo */ }
   superFreeze(f, m) {
     this.freezeT = 52; this.freezeBy = f; this.freezeName = m.name;
+    cameraZoom(this, f.x, GROUND - 90, 1.18, 70);
     Audio8.play('superStart'); Audio8.say(m.name.toLowerCase().replace(/[¡!]/g, ''));
     this.flashT = 6;
   }
@@ -468,6 +470,7 @@ class Game {
     if (m.sup === 'beam') Object.assign(base, { kind: 'beam', x: f.x + dir * 44 * s, y: 84 * s, vx: 0, w: 0, h: 50, len: 600, hits: 8, hitEvery: 5, life: 46, dmg: 36 });
     else if (m.sup === 'wave') Object.assign(base, { kind: 'ground', x: f.x + dir * 40, y: 0, vx: 5.4 * dir, w: 96, h: 150, hits: 6, hitEvery: 6, life: 150, dmg: 46 });
     else Object.assign(base, { kind: 'ground', x: f.x + dir * 50, y: 0, vx: 7.5 * dir, w: 64, h: 230, hits: 7, hitEvery: 5, life: 120, dmg: 40 });
+    if (f.desp) { base.dmg = Math.round(base.dmg * 1.5); base.desp = true; }
     this.projectiles.push(base);
     Audio8.play('superHit'); this.shake(8);
   }
@@ -482,6 +485,7 @@ class Game {
     const startP = this.ctrls[0].pressed.start || this.ctrls[1].pressed.start || i.esc;
     if (startP && this.phase !== 'end') { this.paused = { idx: 0 }; this.pauseFrom = 'fight'; Audio8.play('select'); this.go('pause'); return; }
     this.pt++;
+    tickZoom(this);
     if (this.freezeT > 0) { this.freezeT--; updatePose(f1); updatePose(f2); return; }
     if (this.ultra) { this.updUltra(); updatePose(f1); updatePose(f2); for (const f of [f1, f2]) { if (f.dispHp > f.hp) f.dispHp = Math.max(f.hp, f.dispHp - 8); } return; }
     if (this.hitstop > 0) { this.hitstop--; return; }
@@ -632,6 +636,8 @@ class Game {
     Audio8.play(heavy ? 'hitHeavy' : 'hitLight');
     if (counter) { Audio8.play('counter'); this.fx.word(sx, sy - 34, '¡CONTRA!', '#ff5b7a', 10); }
     this.fx.spark(sx, sy, heavy ? '#ffe36e' : '#fff', heavy ? 14 : 8, heavy ? 1.3 : 0.9);
+    FxPro.impact(this.fx, sx, sy, heavy, a.ch.color, a.ch.id, m.kind === 'special' || m.kind === 'super');
+    if (m.kind === 'super' && info.last) { this.flashT = Math.max(this.flashT, 5); FxPro.burst(this.fx, sx, sy, true, a.ch.color); }
     if (heavy || d.combo % 3 === 0) this.fx.word(sx + (RNG() - 0.5) * 30, sy - 22, pickR(heavy ? HEAVY_WORDS : KO_WORDS), pickR(['#f4c20d', '#ff5b7a', '#5effa0', '#9bf0ff']), heavy ? 14 : 11);
     const iconFor = { euro: 'euro', chart: 'chart', notes: 'note', ai: 'digit', comic: 'star', clap: 'film', sub: 'bubble', wave: 'bubble', vhs: 'film', horns: 'bolt', board: 'star', metal: 'bolt' };
     if (m.fx) { this.fx.icons(sx, sy, iconFor[m.fx] || 'star', m.kind === 'super' ? 3 : 6); if (m.text && info.last !== false && m.kind === 'special') this.fx.word(sx, sy - 44, m.text, '#fff', 10); }
@@ -658,6 +664,8 @@ class Game {
     const other = d === this.f1 ? this.f2 : this.f1;
     if (this.phase !== 'fight') return;
     this.phase = 'ko'; this.pt = 0; this.koSlow = 60; this.flashT = 12;
+    cameraZoom(this, d.x, GROUND - d.y - 60, 1.3, 90);
+    FxPro.burst(this.fx, d.x, GROUND - d.y - 60, true, a.ch.color);
     this.roundWinner = other.hp > 0 ? other : null;
     if (other.hp <= 0) this.roundWinner = null;
     Audio8.play('ko'); Audio8.say('K. O.');
@@ -692,12 +700,21 @@ class Game {
       ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 2, 26 * f.s * Math.max(0.5, 1 - f.y / 200), 5, 0, 0, 7); ctx.fill();
       if (f.pose) { ctx.save(); ctx.globalAlpha = 0.14; ctx.translate(0, GROUND * 2 + 4); ctx.scale(1, -1); drawFighterAt(ctx, f.look, f.x, GROUND + f.y, f.pose, this.visFacing(f), this.frame, { fighter: f }); ctx.restore(); }
     }
-    if (fr) { ctx.fillStyle = 'rgba(5,0,20,0.72)'; ctx.fillRect(0, 0, W, H); }
+    ctx.save(); applyZoom(ctx, this);
+    // fondo de energía: durante el corte del super y mientras el super está activo
+    const sup = fr ? this.freezeBy : [f1, f2].find(f => f.state === 'attack' && f.move && (f.move.kind === 'super' || f.move.kind === 'ultra') && f.mf < f.move.startup + f.move.active);
+    if (sup && !this.ultra) FxPro.superBG(ctx, sup.x, GROUND - sup.y - 80 * sup.s, sup.desp ? '#ff3030' : sup.ch.color, this.frame, fr ? 1 : 0.6);
     if (this.ultra) this.drawUltra(ctx);
+    if (fr) FxPro.aura(ctx, this.freezeBy.x, GROUND - this.freezeBy.y, 110 * this.freezeBy.s, this.freezeBy.desp ? '#ff3030' : this.freezeBy.ch.color, this.frame);
+    FxPro.drawGhosts(ctx);
     const order = (f2.state === 'attack' && f1.state !== 'attack') ? [f1, f2] : [f2, f1];
-    for (const f of order) this.drawFighter(ctx, f);
+    for (const f of order) {
+      if (FxPro.trails(f)) FxPro.trail(f, f.x, GROUND - f.y, this.visFacing(f), 109 * (f.look.height || 1.78), f.ch.color, this.frame);
+      this.drawFighter(ctx, f);
+    }
     for (const p of this.projectiles) drawProjectile(ctx, p, this.frame);
     this.fx.draw(ctx);
+    ctx.restore();
     Stage.drawCrowd(ctx, this.frame, this.phase === 'ko' ? 1 : (this.combos[0] || this.combos[1]) ? 0.7 : 0.25);
     if (fr) this.drawCutIn(ctx);
     this.drawHUD(ctx);
@@ -757,6 +774,11 @@ class Game {
     for (const p of this.projectiles) box(this.projBox(p), '#ff0');
   }
   drawCutIn(ctx) {
+    const f = this.freezeBy, m = f.move;
+    const label = m && m.kind === 'ultra' ? 'GOLPE FINAL' : f.desp ? '¡DESESPERACIÓN!' : m && m.id === 'super2' ? 'SUPER 2' : 'SUPER';
+    FxPro.cutIn(ctx, f.ch, f.look, m ? m.name : this.freezeName, label, 52 - this.freezeT, 52, f.idx === 0, this.frame);
+  }
+  drawCutInOld(ctx) {
     const f = this.freezeBy, k = Math.min(1, (52 - this.freezeT) / 8);
     const y = 120, left = f.idx === 0;
     ctx.save();
@@ -816,8 +838,9 @@ class Game {
         ctx.fillStyle = part >= 1 ? (Math.floor(this.frame / 5) % 2 ? (i ? '#f4c20d' : '#5effa0') : '#9bf0ff') : '#2f7bf0';
         if (flip) ctx.fillRect(sx + 1 + (w / 2 - 2) * (1 - part), y, (w / 2 - 2) * part, 8); else ctx.fillRect(sx + 1, y, (w / 2 - 2) * part, 8);
       }
-      const label = lv >= 2 ? '¡GOLPE FINAL LISTO!' : lv === 1 ? 'SUPER x1' : 'SUPER';
-      txt(ctx, label, flip ? x + w : x, y - 9, 7, lv >= 2 ? '#f4c20d' : lv ? '#5effa0' : '#9bf0ff', flip ? 'right' : 'left');
+      const desp = lv >= 1 && f.hp < f.maxHp * 0.25 && f.hp > 0;
+      const label = desp ? '¡DESESPERACIÓN!' : lv >= 2 ? '¡GOLPE FINAL LISTO!' : lv === 1 ? 'SUPER x1' : 'SUPER';
+      txt(ctx, label, flip ? x + w : x, y - 9, 7, desp ? (Math.floor(this.frame / 6) % 2 ? '#ff5b7a' : '#fff') : lv >= 2 ? '#f4c20d' : lv ? '#5effa0' : '#9bf0ff', flip ? 'right' : 'left');
     });
     // combos y nombres de golpe
     for (let k = 0; k < 2; k++) {

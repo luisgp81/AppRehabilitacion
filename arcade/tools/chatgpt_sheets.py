@@ -135,6 +135,120 @@ def prompts():
     return out
 
 
+# ── Efectos especiales (fondo NEGRO: se dibujan en modo aditivo, el negro desaparece) ──
+FX_SHEETS = {
+    'IMPACTO': [('hit_s', 6, 'small hit spark: a sharp white-yellow star burst that pops and fades, with tiny flying sparks'),
+                ('hit_l', 6, 'big heavy hit impact: a huge explosive white-orange star burst with shock rings and flying sparks, then fading'),
+                ('guard', 5, 'blocked hit: a round blue-white energy shield flash with a ring expanding and fading')],
+    'ENERGIA': [('aura', 8, 'looping power-up aura: tall flickering energy flames rising around an EMPTY space the size of a person (do not draw a person), white core, loop'),
+                ('burst', 8, 'huge explosion: blinding white flash growing into a big fiery orange-yellow explosion with smoke rings, then fading'),
+                ('dust', 6, 'ground shockwave: a wide flat ring of dust and light expanding along the ground and fading')],
+    'LUIS': [('proj', 6, 'projectile loop: a spinning golden energy orb with a glowing euro symbol inside and green banknotes swirling around it, motion trail to the left'),
+             ('burst', 6, 'impact explosion of golden coins, euro symbols and banknotes bursting outward and fading'),
+             ('super', 8, 'super move energy flare: a massive cyan-white digital energy blast with binary-code particles and circuit lines, growing and pulsing')],
+    'JC': [('proj', 6, 'projectile loop: a comic-book style shockwave: yellow and red jagged explosion bubble with halftone dots and speed lines, moving right'),
+           ('burst', 6, 'comic-book impact explosion: big jagged yellow-red burst with halftone dots and action lines, then fading (NO letters)'),
+           ('super', 8, 'super move: a giant crashing ocean wave in yellow and blue stripes with white foam, rising and crashing, loop')],
+    'SEBAS': [('proj', 6, 'projectile loop: a spinning black VHS cassette tape wrapped in crackling purple and white electricity, motion trail to the left'),
+              ('burst', 6, 'electric impact: a purple and white lightning explosion with forked bolts, then fading'),
+              ('super', 8, 'super move: a tall vertical pillar of purple and white lightning bolts striking down, crackling, loop')],
+}
+FX_STYLE = ("Late-90s arcade fighting game special effects sprite sheet (Neo Geo / CPS-2 quality pixel art, like the flashiest King of Fighters / Fatal Fury effects), "
+            "vivid glowing colours. Plain flat pure BLACK #000000 background everywhere (it will be used with additive blending). "
+            "Clear empty black space between frames and between rows. Effects only: NO characters, NO people, NO text, NO letters, NO numbers, NO grid lines.")
+PORTRAIT_STYLE = ("Dramatic super-move cut-in portrait for a late-90s arcade fighting game (King of Fighters / Fatal Fury style), pixel art, "
+                  "bust from the chest up, three-quarter view facing RIGHT, intense determined expression, strong rim lighting, speed lines NOT included. "
+                  "Exactly the same character, face, hair and outfit as the attached sprite sheet. Plain flat pure green #00FF00 background everywhere. "
+                  "No text, no letters, no frame, no border.")
+
+
+def fx_prompts():
+    out = []
+    for name, rows in FX_SHEETS.items():
+        spec = ' '.join(f"Row {r + 1}: {n} frames, left to right, {what}." for r, (an, n, what) in enumerate(rows))
+        prompt = (f"Create ONE sprite sheet image of special effects. The sheet has exactly {len(rows)} horizontal rows; each row is one animation "
+                  f"with its frames evenly spaced and centred on the same horizontal line. {spec} {FX_STYLE}")
+        out.append({'code': f'FX-{name}', 'id': name.lower(), 'rows': [[an, n] for an, n, _ in rows], 'prompt': prompt})
+    for cid, c in CHARS.items():
+        out.append({'code': f'RETRATO-{cid.upper()}', 'id': cid, 'portrait': True,
+                    'prompt': f"Create ONE image: {PORTRAIT_STYLE} The character is {c['desc']}"})
+    return out
+
+
+def fx_md():
+    L = ["# Efectos especiales y retratos para ChatGPT", "",
+         "Efectos: una conversación nueva, sin adjuntar nada. Retratos: en la conversación de cada personaje, adjuntando una de sus hojas.",
+         "Sube cada imagen con su código.", ""]
+    for it in fx_prompts():
+        L += [f"## {it['code']}", "", "```", it['prompt'], "```", ""]
+    return "\n".join(L)
+
+
+FX_DIR = HERE.parent / 'assets' / 'fx'
+FX_JS = HERE.parent / 'js' / 'fx-index.js'
+
+
+def import_fx(code, src):
+    """FX-xxx: corta filas y fotogramas sobre fondo negro (alfa = brillo) → assets/fx/<id>/atlas-0.webp + índice.
+    RETRATO-xxx: quita el verde → assets/fx/retratos/<id>.webp"""
+    from process_frames import split, pack, remove_bg
+    img = Image.open(src).convert('RGB')
+    if code.startswith('RETRATO-'):
+        cid = code.split('-', 1)[1].lower()
+        im = remove_bg(img); im = im.crop(im.getbbox())
+        im = im.resize((round(im.width * 512 / im.height), 512), Image.LANCZOS)
+        d = FX_DIR / 'retratos'; d.mkdir(parents=True, exist_ok=True)
+        im.save(d / f'{cid}.webp', quality=90, alpha_quality=100, method=6)
+        print(f'{code} → {d / (cid + ".webp")}')
+    else:
+        it = next(i for i in fx_prompts() if i['code'] == code)
+        a = np.asarray(img).astype(np.float32)
+        lum = a.max(2)
+        alpha = np.clip((lum - 18) * 255 / 120, 0, 255)  # negro → transparente; brillo → opaco
+        rgba = Image.fromarray(np.dstack([a, alpha]).astype(np.uint8), 'RGBA')
+        H = rgba.height; rows = []
+        nr = len(it['rows'])
+        # filas: por franjas vacías (alfa) o reparto uniforme
+        filled = (np.asarray(rgba)[..., 3] > 30).sum(1) > rgba.width * 0.003
+        runs, y = [], 0
+        while y < len(filled):
+            if filled[y]:
+                s0 = y
+                while y < len(filled) and filled[y]: y += 1
+                runs.append([s0, y])
+            y += 1
+        while len(runs) > nr:
+            i = min(range(len(runs) - 1), key=lambda k: runs[k + 1][0] - runs[k][1]); runs[i:i + 2] = [[runs[i][0], runs[i + 1][1]]]
+        if len(runs) != nr: runs = [[int(r * H / nr), int((r + 1) * H / nr)] for r in range(nr)]
+        frames, meta = [], {}
+        big = max(e - s0 for s0, e in runs)
+        k = 256 / big  # la fila más alta mide 256 px; el resto conserva su proporción
+        for (an, n), (s0, e) in zip(it['rows'], runs):
+            strip = rgba.crop((0, s0, rgba.width, e))
+            w = strip.width / n
+            out = []
+            for j in range(n):  # efectos: reparto uniforme (los destellos se tocan y no se separan bien por manchas)
+                c = strip.crop((int(j * w), 0, int((j + 1) * w), strip.height))
+                bb = c.getbbox() or (0, 0, 1, 1)
+                cx, cy = c.width / 2 - bb[0], c.height / 2 - bb[1]
+                c = c.crop(bb); c = c.resize((max(1, round(c.width * k)), max(1, round(c.height * k))), Image.LANCZOS)
+                out.append({'i': len(frames), 'ax': round(cx * k, 1), 'ay': round(cy * k, 1)}); frames.append(c)
+            meta[an] = {'frames': out}
+        pages, rects = pack(frames)
+        d = FX_DIR / it['id']; d.mkdir(parents=True, exist_ok=True)
+        for old in d.glob('atlas-*.webp'): old.unlink()
+        for i, pg in enumerate(pages): pg.save(d / f'atlas-{i}.webp', quality=90, alpha_quality=100, method=6)
+        for an in meta:
+            for fr in meta[an]['frames']: fr['r'] = list(rects[fr.pop('i')])
+        (d / 'atlas.json').write_text(json.dumps({'pages': len(pages), 'anims': meta}, separators=(',', ':')))
+        print(f'{code} → {d} ({len(frames)} fotogramas, {len(pages)} páginas)')
+    idx = {}
+    for d in sorted(FX_DIR.glob('*')):
+        if d.name == 'retratos': idx['retratos'] = sorted(p.stem for p in d.glob('*.webp'))
+        elif (d / 'atlas.json').exists(): idx[d.name] = json.loads((d / 'atlas.json').read_text())
+    FX_JS.write_text('// Generado por tools/chatgpt_sheets.py — no editar\nwindow.FX_INDEX = ' + json.dumps(idx, separators=(',', ':')) + ';\n')
+
+
 def calle_prompts():
     out = {'enemies': [], 'stages': [], 'grabs': []}
     for eid, spec in ENEMIES.items():
@@ -240,6 +354,7 @@ def do_import(args):
         code, _, flip = code.upper().partition(':')
         flip = {int(r) for r in flip.split(',') if r}
         if re.fullmatch(r'F\d-P\d', code): import_panel(code, src); continue
+        if code.startswith(('FX-', 'RETRATO-')): import_fx(code, src); continue
         if code not in table: sys.exit(f'Código desconocido: {code}')
         cid, rows = table[code]
         img = Image.open(src)
@@ -264,5 +379,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'prompts': json.dump(prompts(), sys.stdout, ensure_ascii=False)
     elif len(sys.argv) > 1 and sys.argv[1] == 'import': do_import(sys.argv[2:])
     elif len(sys.argv) > 1 and sys.argv[1] == 'calle-md': print(calle_md())
+    elif len(sys.argv) > 1 and sys.argv[1] == 'fx-md': print(fx_md())
     elif len(sys.argv) > 1 and sys.argv[1] == 'calle': json.dump(calle_prompts(), sys.stdout, ensure_ascii=False)
     else: sys.exit(__doc__)

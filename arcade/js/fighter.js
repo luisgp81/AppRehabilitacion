@@ -101,6 +101,7 @@ class Fighter {
     if (m.cost) {
       if (this.meter < m.cost) return false;
       this.meter -= m.cost; this.stats.supers++;
+      this.desp = id === 'super' && this.hp < this.maxHp * 0.25; // golpe desesperado: con poca vida el super pega más
       this.game.superFreeze(this, m);
     } else if (m.kind === 'special') {
       this.stats.specials++;

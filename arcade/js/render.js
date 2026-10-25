@@ -489,6 +489,8 @@ class FX {
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(sc, sc);
         comicText(ctx, p.text, 0, 0, p.size, p.col); ctx.restore();
       } else if (p.type === 'icon') drawIcon(ctx, p.kind, p.x, p.y, p.rot + p.life * 0.1);
+      else if (p.type === 'star') drawStar(ctx, p.x, p.y, p.r, p.col, p.rot, k);
+      else if (p.type === 'art') { ctx.globalAlpha = 1; FxArt.draw(ctx, p.id, p.an, Math.floor((p.max - p.life) / 3), p.x, p.y, p.k, 1, Math.min(1, k * 2)); }
     }
     ctx.globalAlpha = 1;
   }
@@ -520,6 +522,23 @@ function drawIcon(ctx, kind, x, y, rot) {
 
 // ── Proyectiles ──
 function drawProjectile(ctx, p, t) {
+  // halo de energía y chispas alrededor (estilo arcade); con arte FX-<PERSONAJE> se usa su animación
+  const col = p.desp ? '#ff3030' : p.owner.ch.color, cid = p.owner.ch.id, py = GROUND - p.y;
+  if (p.kind !== 'beam') {
+    const r = p.isSuper ? 70 : 34, cy = p.kind === 'ground' ? py - p.h * 0.5 : py;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(p.x, cy, 0, p.x, cy, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(0.35, hexA(col, 0.45)); g.addColorStop(1, hexA(col, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, cy, r, 0, 7); ctx.fill();
+    for (let i = 0; i < 6; i++) { // estela de chispas detrás
+      const a = t * 0.3 + i, d = 10 + i * 9;
+      ctx.fillStyle = hexA(i % 2 ? '#ffffff' : col, 0.7 - i * 0.1);
+      ctx.fillRect(p.x - p.dir * d, cy + Math.sin(a * 1.7) * (6 + i * 2), 3, 3);
+    }
+    ctx.restore();
+    if (!p.isSuper && FxArt.draw(ctx, cid, 'proj', Math.floor(t / 4), p.x, cy, 0.42, p.dir)) return;
+    if (p.isSuper && FxArt.has(cid, 'super')) FxArt.draw(ctx, cid, 'super', Math.floor(t / 4), p.x, cy, p.h / 230, p.dir, 0.9);
+  } else if (FxArt.has(cid, 'super')) FxArt.draw(ctx, cid, 'super', Math.floor(t / 4), p.x + p.dir * 40, py, 0.6, p.dir, 0.9);
   ctx.save(); ctx.translate(p.x, GROUND - p.y); ctx.scale(p.dir, 1);
   const k = p.fx;
   if (k === 'euro') {

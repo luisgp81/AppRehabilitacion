@@ -229,7 +229,7 @@ class Calle {
     this.props = (st.props || []).map((pr, i) => ({ x: pr.at * st.len, z: pr.z, drop: pr.drop, kind: kinds[i % kinds.length], hp: 2, hitBy: -1, shakeT: 0 }));
     this.time = 99 * 60; this.atm = null;
     this.phase = 'intro'; this.pt = 0; this.hitstop = 0; this.shakeT = 0; this.shakeA = 0;
-    this.foeHud = null; this.superFx = 0; this.nextId = 1; this.beam = null; this.goT = 0; this.bossIntro = 0;
+    this.foeHud = null; this.superFx = 0; this.nextId = 1; this.beam = null; this.goT = 0; this.bossIntro = 0; this.cut = null; this.zoom = null; FxPro.ghosts = [];
     for (const p of this.active) Object.assign(p, { x: 120 - p.slot * 40, z: 56 - p.slot * 26, y: 0, vx: 0, vz: 0, vy: 0, hp: p.maxHp, state: 'idle', move: null, t: 0, invuln: 0, held: null, by: null });
     Audio8.music('fight');
   }
@@ -239,6 +239,8 @@ class Calle {
   // ── Bucle ──
   update() {
     this.frame++; this.pt++;
+    tickZoom(this);
+    if (this.cut && ++this.cut.t > 44) this.cut = null;
     if (this.shakeT > 0) this.shakeT--;
     if (this.superFx > 0) this.superFx--;
     if (this.foeHud && --this.foeHud.t <= 0) this.foeHud = null;
@@ -432,7 +434,10 @@ class Calle {
   }
   startSuper(p) {
     p.startMove('super'); p.special = false; p.invuln = 60;
-    this.superFx = 70; this.superBy = p; p.superHits = 0; this.game.flashT = 10;
+    p.desp = p.hp < p.maxHp * 0.25; // golpe desesperado: con poca vida, más daño
+    this.superFx = 110; this.superBy = p; p.superHits = 0; this.game.flashT = 10;
+    this.cut = { p, t: 0 }; this.hitstop = 40; // corte de super (la acción se congela)
+    cameraZoom(this, p.x - this.camX, groundY(p.z) - 70, 1.15, 70);
     Audio8.play('superStart'); this.callout(p.ch.moves.super.name, p); this.shake(6);
   }
   // Super: golpea a todos los enemigos en pantalla, 4 impactos y el último lanza
@@ -442,7 +447,7 @@ class Calle {
     if (p.mf < 10 || (p.mf - 10) % 9 || p.superHits >= 4) continue;
     p.superHits++;
     const last = p.superHits === 4;
-    const m = { dmg: 55, hitstun: 30, push: 1, knockdown: last, launch: last ? { vx: 4, vy: 8 } : null, kind: 'super', fx: p.ch.moves.super.fx };
+    const m = { dmg: p.desp ? 82 : 55, hitstun: 30, push: 1, knockdown: last, launch: last ? { vx: 4, vy: 8 } : null, kind: 'super', fx: p.ch.moves.super.fx };
     for (const e of this.foes) if (e.hurtbox() && e.x > this.camX - 20 && e.x < this.camX + W + 20) this.applyHit(p, e, m, { x: e.x, y: 0.5 * e.size });
     for (const s of this.shots) if (!s.mine) s.life = 0;
     Audio8.play('superHit'); this.shake(5);
@@ -694,6 +699,7 @@ class Calle {
   }
   applyHit(a, d, m, info) {
     const toPlayer = !!d.isPlayer, fx = this.game.fx;
+    const isSpecial = a.isPlayer && (m.kind === 'special' || m.kind === 'super');
     const sx = info.x, sy = groundY(d.z) - info.y;
     const dir = info.dir || Math.sign(d.x - a.x) || a.facing;
     // guardia frontal (yuppie): para los golpes normales que llegan de frente
@@ -726,6 +732,7 @@ class Calle {
     const knockMove = m.knockdown || m.knock || m.launch;
     Audio8.play(heavy ? 'hitHeavy' : 'hitLight');
     fx.spark(sx, sy, heavy ? '#ffe36e' : '#fff', heavy ? 12 : 7, heavy ? 1.2 : 0.8);
+    FxPro.impact(fx, sx, sy, heavy, a.isPlayer ? a.ch.color : '#ff9b6b', a.isPlayer ? a.ch.id : null, isSpecial);
     if (heavy || d.recent % 3 === 0) fx.word(sx + (RNG() - 0.5) * 24, sy - 18, pickR(heavy ? HEAVY_WORDS : KO_WORDS), pickR(['#f4c20d', '#ff5b7a', '#5effa0', '#9bf0ff']), heavy ? 12 : 9);
     const iconFor = { euro: 'euro', chart: 'chart', notes: 'note', ai: 'digit', comic: 'star', clap: 'film', sub: 'bubble', wave: 'bubble', vhs: 'film', horns: 'bolt', board: 'star', metal: 'bolt' };
     if (m.fx && (m.kind === 'special' || m.kind === 'super')) fx.icons(sx, sy, iconFor[m.fx] || 'star', 4);
@@ -823,6 +830,7 @@ class Calle {
     ctx.save();
     if (this.shakeT > 0) ctx.translate((RNG() - 0.5) * this.shakeA, (RNG() - 0.5) * this.shakeA);
     const cx = this.camX;
+    applyZoom(ctx, this);
     drawStage(ctx, cx, this.frame, this.stage);
     ctx.save(); ctx.translate(-cx, 0);
     for (const it of this.items) if (!it.taken) drawItem(ctx, it, this.frame);
@@ -832,13 +840,18 @@ class Calle {
     const all = [...this.active, ...this.foes].sort((a, b) => a.z - b.z);
     for (const b of all) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(b.x, groundY(b.z) + 1, 0.18 * b.hpx * Math.max(0.5, 1 - b.y / 200), 5, 0, 0, 7); ctx.fill(); }
     if (this.superFx > 0) this.drawSuperFx(ctx);
-    for (const b of all) b.isPlayer ? this.drawPlayer(ctx, b) : this.drawThug(ctx, b);
+    FxPro.drawGhosts(ctx);
+    for (const b of all) {
+      if (b.isPlayer && FxPro.trails(b)) FxPro.trail(b, b.x, groundY(b.z) - b.y, b.facing, b.hpx * 1.22, b.ch.color, this.frame);
+      b.isPlayer ? this.drawPlayer(ctx, b) : this.drawThug(ctx, b);
+    }
     for (const s of this.shots) drawShot(ctx, s);
     this.game.fx.draw(ctx);
     ctx.restore();
     drawStageFront(ctx, cx, this.frame, this.stage);
     ctx.restore();
     this.drawHUD(ctx);
+    if (this.cut) { const p = this.cut.p; FxPro.cutIn(ctx, p.ch, p.look, p.ch.moves.super.name, p.desp ? '¡DESESPERACIÓN!' : 'SUPER', this.cut.t, 44, true, this.frame); }
   }
   drawPlayer(ctx, b) {
     if (b.weapon && !(b.state === 'attack' && b.move && b.move.id.startsWith('w_'))) drawWeapon(ctx, b.weapon.kind, b.x - b.facing * 0.12 * b.hpx, groundY(b.z) - b.y - 0.5 * b.hpx, b.facing, 1.9);
@@ -873,7 +886,11 @@ class Calle {
     }
   }
   drawSuperFx(ctx) {
-    const p = this.superBy || this.player, k = this.superFx / 70;
+    const p = this.superBy || this.player, k = Math.min(1, this.superFx / 70);
+    ctx.save(); ctx.translate(this.camX, 0);
+    FxPro.superBG(ctx, p.x - this.camX, groundY(p.z) - 80 * p.ls, p.desp ? '#ff3030' : p.ch.color, this.frame, Math.min(1, k * 1.5));
+    if (k > 0.5) FxPro.aura(ctx, p.x - this.camX, groundY(p.z), p.hpx, p.desp ? '#ff3030' : p.ch.color, this.frame, (k - 0.5) * 2);
+    ctx.restore();
     ctx.save();
     ctx.globalAlpha = Math.min(1, k * 2) * 0.55;
     const g = ctx.createLinearGradient(0, 0, 0, H);

@@ -56,6 +56,15 @@ Partidas completas con un jugador automático: Juan Carlos termina las 3 fases y
 - Privado entre amigos: pide una clave la primera vez (`ACCESS_HASH` en js/game.js) y no se indexa en buscadores (`robots.txt`, `_headers` y meta noindex).
   No es seguridad real: frena a los curiosos.
 
+**Especiales al estilo KOF / Fatal Fury** (`js/fx-pro.js`, en lucha y en modo Calle)
+- Corte de super con retrato, líneas de velocidad y nombre; fondo de energía, aura y zoom de cámara al lanzar un super.
+- Estelas de imágenes fantasma en embestidas, antiaéreos y supers.
+- Halo y chispas en los proyectiles; impactos en estrella; explosión y zoom en el KO.
+- Desesperación: con menos del 25 % de vida, el super hace un 50 % más de daño, con efecto rojo y aviso en la barra.
+- Arte opcional para subir el nivel, en `tools/prompts-efectos.md`: 6 hojas de efectos sobre fondo negro y 3 retratos.
+  Importar con `python3 tools/chatgpt_sheets.py import FX-IMPACTO hoja.png` o `import RETRATO-LUIS retrato.png`.
+  Sin ese arte, los efectos se dibujan por código.
+
 ## Pendiente
 
 1. **Juan Carlos**: completo: H01–H10 (162 fotogramas).
