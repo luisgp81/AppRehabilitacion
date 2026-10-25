@@ -61,6 +61,17 @@ Partidas completas con un jugador automático: Juan Carlos termina las 3 fases y
 - Estelas de imágenes fantasma en embestidas, antiaéreos y supers.
 - Halo y chispas en los proyectiles; impactos en estrella; explosión y zoom en el KO.
 - Desesperación: con menos del 25 % de vida, el super hace un 50 % más de daño, con efecto rojo y aviso en la barra.
+- Supers gigantes que ocupan todo el escenario:
+  - Luis: rayo de IA enorme con lluvia de código y billetes.
+  - Juan Carlos: ola amarilla y azul que cruza la pantalla.
+  - Sebas: rayos que caen por todo el escenario y un altavoz gigante.
+- Consecuencias de los golpes (`STATUS_OF` en fx-pro.js):
+  - IA: glitch y daño continuo.
+  - Euros, gráfica y notas: suelta billetes.
+  - Viñeta y claqueta: en blanco y negro y más aturdido.
+  - Ola y submarino: empapado y más lento.
+  - Guitarra y cuernos: rayos X y luego chamuscado.
+  - VHS y patinete: rebobinado hacia atrás.
 - Arte opcional para subir el nivel, en `tools/prompts-efectos.md`: 6 hojas de efectos sobre fondo negro y 3 retratos.
   Importar con `python3 tools/chatgpt_sheets.py import FX-IMPACTO hoja.png` o `import RETRATO-LUIS retrato.png`.
   Sin ese arte, los efectos se dibujan por código.

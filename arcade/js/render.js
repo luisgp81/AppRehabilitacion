@@ -490,6 +490,8 @@ class FX {
         comicText(ctx, p.text, 0, 0, p.size, p.col); ctx.restore();
       } else if (p.type === 'icon') drawIcon(ctx, p.kind, p.x, p.y, p.rot + p.life * 0.1);
       else if (p.type === 'star') drawStar(ctx, p.x, p.y, p.r, p.col, p.rot, k);
+      else if (p.type === 'drip') { ctx.fillStyle = '#7fc8ff'; ctx.fillRect(p.x, p.y, 2, 4); }
+      else if (p.type === 'smoke') { ctx.fillStyle = 'rgba(60,60,60,0.5)'; ctx.beginPath(); ctx.arc(p.x, p.y, 3 + (1 - k) * 9, 0, 7); ctx.fill(); }
       else if (p.type === 'art') { ctx.globalAlpha = 1; FxArt.draw(ctx, p.id, p.an, Math.floor((p.max - p.life) / 3), p.x, p.y, p.k, 1, Math.min(1, k * 2)); }
     }
     ctx.globalAlpha = 1;
@@ -507,6 +509,7 @@ function comicText(ctx, text, x, y, size, col, align = 'center') {
 }
 
 function drawIcon(ctx, kind, x, y, rot) {
+  if (kind === 'bill') { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = OUT; ctx.fillRect(-9, -5, 18, 10); ctx.fillStyle = '#5fbf6a'; ctx.fillRect(-8, -4, 16, 8); ctx.fillStyle = '#2e7a3a'; ctx.fillRect(-2, -2, 4, 4); ctx.restore(); return; }
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot * 0.3);
   ctx.font = `8px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (kind === 'euro') { ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, 7); ctx.fill(); ctx.fillStyle = '#8a5d00'; ctx.fillText('€', 0, 1); }
@@ -580,7 +583,9 @@ function drawProjectile(ctx, p, t) {
     for (let i = 0; i < len / 16; i++) ctx.fillText(((i * 7 + Math.floor(t / 3)) % 3 === 0) ? '1' : '0', i * 16 - (t * 6) % 16, ((i * 13) % 5 - 2) * 6);
     ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
     for (let i = 0; i < len / 40; i++) { const x = i * 40 + (t * 3) % 40; ctx.beginPath(); ctx.arc(x, -hh * 0.55, 3, 0, 7); ctx.moveTo(x + 3, -hh * 0.55); ctx.lineTo(x + 37, hh * 0.55); ctx.stroke(); ctx.beginPath(); ctx.arc(x + 20, hh * 0.55, 3, 0, 7); ctx.stroke(); }
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, hh * 0.9, 0, 7); ctx.fill();
+    const og = ctx.createRadialGradient(0, 0, 0, 0, 0, hh * 0.9); // destello de origen
+    og.addColorStop(0, 'rgba(255,255,255,0.95)'); og.addColorStop(0.4, 'rgba(160,240,255,0.6)'); og.addColorStop(1, 'rgba(80,220,255,0)');
+    ctx.fillStyle = og; ctx.beginPath(); ctx.arc(0, 0, hh * 0.9, 0, 7); ctx.fill();
   } else if (k === 'wave') { // ola amarilla y azul (super de JC)
     const hgt = p.h;
     for (let i = 0; i < 6; i++) {

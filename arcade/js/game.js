@@ -467,9 +467,9 @@ class Game {
   }
   spawnSuper(f, m) {
     const s = f.s, dir = f.facing, base = { id: ++this.projId, owner: f, dir, hitsDone: 0, lastHit: -99, age: 0, isSuper: true, mv: m, fx: f.ch.moves.super.fx };
-    if (m.sup === 'beam') Object.assign(base, { kind: 'beam', x: f.x + dir * 44 * s, y: 84 * s, vx: 0, w: 0, h: 50, len: 600, hits: 8, hitEvery: 5, life: 46, dmg: 36 });
-    else if (m.sup === 'wave') Object.assign(base, { kind: 'ground', x: f.x + dir * 40, y: 0, vx: 5.4 * dir, w: 96, h: 150, hits: 6, hitEvery: 6, life: 150, dmg: 46 });
-    else Object.assign(base, { kind: 'ground', x: f.x + dir * 50, y: 0, vx: 7.5 * dir, w: 64, h: 230, hits: 7, hitEvery: 5, life: 120, dmg: 40 });
+    if (m.sup === 'beam') Object.assign(base, { kind: 'beam', x: f.x + dir * 44 * s, y: 84 * s, vx: 0, w: 0, h: 110, len: 600, hits: 8, hitEvery: 5, life: 46, dmg: 36 });
+    else if (m.sup === 'wave') Object.assign(base, { kind: 'ground', x: f.x + dir * 40, y: 0, vx: 6 * dir, w: 170, h: 300, hits: 6, hitEvery: 6, life: 150, dmg: 46 });
+    else Object.assign(base, { kind: 'ground', x: f.x + dir * 50, y: 0, vx: 7.5 * dir, w: 150, h: 330, hits: 7, hitEvery: 5, life: 120, dmg: 40 });
     if (f.desp) { base.dmg = Math.round(base.dmg * 1.5); base.desp = true; }
     this.projectiles.push(base);
     Audio8.play('superHit'); this.shake(8);
@@ -504,6 +504,7 @@ class Game {
     if (this.phase === 'fight' || this.phase === 'ko' || this.phase === 'end') {
       f1.update(f2); f2.update(f1);
     }
+    for (const f of [f1, f2]) FxPro.statusTick(f, this.fx, f.x, GROUND - f.y - 112 * f.s, 112 * f.s);
     f1.physics(); f2.physics();
     this.separate();
     for (const [a, b] of [[f1, f2], [f2, f1]]) {
@@ -638,6 +639,7 @@ class Game {
     this.fx.spark(sx, sy, heavy ? '#ffe36e' : '#fff', heavy ? 14 : 8, heavy ? 1.3 : 0.9);
     FxPro.impact(this.fx, sx, sy, heavy, a.ch.color, a.ch.id, m.kind === 'special' || m.kind === 'super');
     if (m.kind === 'super' && info.last) { this.flashT = Math.max(this.flashT, 5); FxPro.burst(this.fx, sx, sy, true, a.ch.color); }
+    FxPro.applyStatus(d, m, dir, this.fx, sx, sy);
     if (heavy || d.combo % 3 === 0) this.fx.word(sx + (RNG() - 0.5) * 30, sy - 22, pickR(heavy ? HEAVY_WORDS : KO_WORDS), pickR(['#f4c20d', '#ff5b7a', '#5effa0', '#9bf0ff']), heavy ? 14 : 11);
     const iconFor = { euro: 'euro', chart: 'chart', notes: 'note', ai: 'digit', comic: 'star', clap: 'film', sub: 'bubble', wave: 'bubble', vhs: 'film', horns: 'bolt', board: 'star', metal: 'bolt' };
     if (m.fx) { this.fx.icons(sx, sy, iconFor[m.fx] || 'star', m.kind === 'super' ? 3 : 6); if (m.text && info.last !== false && m.kind === 'special') this.fx.word(sx, sy - 44, m.text, '#fff', 10); }
@@ -704,6 +706,7 @@ class Game {
     // fondo de energía: durante el corte del super y mientras el super está activo
     const sup = fr ? this.freezeBy : [f1, f2].find(f => f.state === 'attack' && f.move && (f.move.kind === 'super' || f.move.kind === 'ultra') && f.mf < f.move.startup + f.move.active);
     if (sup && !this.ultra) FxPro.superBG(ctx, sup.x, GROUND - sup.y - 80 * sup.s, sup.desp ? '#ff3030' : sup.ch.color, this.frame, fr ? 1 : 0.6);
+    if (sup && !fr && sup.move.id === 'super' && sup.mf >= sup.move.startup) FxPro.giant(ctx, sup.ch.id, sup.mf - sup.move.startup, sup.x, GROUND - sup.y - 84 * sup.s, sup.facing, GROUND, Math.min(1, (sup.move.startup + sup.move.active - sup.mf) / 10));
     if (this.ultra) this.drawUltra(ctx);
     if (fr) FxPro.aura(ctx, this.freezeBy.x, GROUND - this.freezeBy.y, 110 * this.freezeBy.s, this.freezeBy.desp ? '#ff3030' : this.freezeBy.ch.color, this.frame);
     FxPro.drawGhosts(ctx);
@@ -736,7 +739,7 @@ class Game {
     if (f.state === 'attack' && f.move && f.move.anim === 'rush') this.drawRushFx(ctx, f);
     if (f.state === 'attack' && f.move && f.move.id === 'dp' && f.isActive()) this.drawDpFx(ctx, f);
     const t0 = performance.now();
-    drawFighterAt(ctx, f.look, f.x, GROUND - f.y, f.pose, this.visFacing(f), this.frame, { glow, expr, state: f.state, flash: f.flash > 0, fighter: f });
+    FxPro.drawStatus(ctx, f, () => drawFighterAt(ctx, f.look, f.x, GROUND - f.y, f.pose, this.visFacing(f), this.frame, { glow, expr, state: f.state, flash: f.flash > 0, fighter: f }), f.x, GROUND - f.y - 112 * f.s, 112 * f.s, this.frame);
     if (!TEST) SpriteRig.sample(performance.now() - t0);
     if (useFilter) ctx.filter = 'none';
     ctx.globalAlpha = 1;

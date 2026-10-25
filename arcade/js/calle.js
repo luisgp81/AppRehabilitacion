@@ -261,7 +261,7 @@ class Calle {
     this.spawnQueue();
     this.pickEngaged();
     for (const e of this.foes) this.updFoe(e);
-    for (const b of [...ps, ...this.foes]) { b.update(); b.physics(); if (b.isPlayer) updatePose(b); }
+    for (const b of [...ps, ...this.foes]) { b.update(); FxPro.statusTick(b, this.game.fx, b.x, groundY(b.z) - b.y - b.hpx, b.hpx); b.physics(); if (b.isPlayer) updatePose(b); }
     this.keepOnScreen();
     this.updHolds();
     this.updSuper();
@@ -733,6 +733,7 @@ class Calle {
     Audio8.play(heavy ? 'hitHeavy' : 'hitLight');
     fx.spark(sx, sy, heavy ? '#ffe36e' : '#fff', heavy ? 12 : 7, heavy ? 1.2 : 0.8);
     FxPro.impact(fx, sx, sy, heavy, a.isPlayer ? a.ch.color : '#ff9b6b', a.isPlayer ? a.ch.id : null, isSpecial);
+    if (a.isPlayer && !toPlayer) FxPro.applyStatus(d, m, dir, fx, sx, sy);
     if (heavy || d.recent % 3 === 0) fx.word(sx + (RNG() - 0.5) * 24, sy - 18, pickR(heavy ? HEAVY_WORDS : KO_WORDS), pickR(['#f4c20d', '#ff5b7a', '#5effa0', '#9bf0ff']), heavy ? 12 : 9);
     const iconFor = { euro: 'euro', chart: 'chart', notes: 'note', ai: 'digit', comic: 'star', clap: 'film', sub: 'bubble', wave: 'bubble', vhs: 'film', horns: 'bolt', board: 'star', metal: 'bolt' };
     if (m.fx && (m.kind === 'special' || m.kind === 'super')) fx.icons(sx, sy, iconFor[m.fx] || 'star', 4);
@@ -856,7 +857,7 @@ class Calle {
   drawPlayer(ctx, b) {
     if (b.weapon && !(b.state === 'attack' && b.move && b.move.id.startsWith('w_'))) drawWeapon(ctx, b.weapon.kind, b.x - b.facing * 0.12 * b.hpx, groundY(b.z) - b.y - 0.5 * b.hpx, b.facing, 1.9);
     if (b.invuln > 0 && b.state !== 'attack' && Math.floor(this.frame / 3) % 2) ctx.globalAlpha = 0.45;
-    drawFighterAt(ctx, b.look, b.x, groundY(b.z) - b.y, b.pose, b.facing, this.frame, { fighter: b, scale: b.k, flash: b.flash > 0, state: b.state });
+    FxPro.drawStatus(ctx, b, () => drawFighterAt(ctx, b.look, b.x, groundY(b.z) - b.y, b.pose, b.facing, this.frame, { fighter: b, scale: b.k, flash: b.flash > 0, state: b.state }), b.x, groundY(b.z) - b.y - b.hpx, b.hpx, this.frame);
     ctx.globalAlpha = 1;
     if (b.state === 'attack' && b.move && b.move.id.startsWith('w_') && b.move.id !== 'w_movil') { // arma en la mano durante el golpe
       const m = b.move, k = clamp((b.mf - 2) / (m.startup + 2), 0, 1), back = b.mf > m.startup + m.active ? clamp((b.mf - m.startup - m.active) / m.recovery, 0, 1) : 0;
@@ -869,7 +870,7 @@ class Calle {
     if (e.state === 'dead' && Math.floor(e.deadT / 3) % 2) return;
     if (e.fade > 0 && e.move && e.move.tele) ctx.globalAlpha = Math.abs(e.fade - e.move.startup / 2) / (e.move.startup / 2);
     const [set, anim, i] = thugFrame(e);
-    FrameSprites.drawFrame(ctx, set, anim, i, e.x, groundY(e.z) - e.y, e.facing, { px: e.size, tint: set === e.def.base ? e.def.tint : null, flash: e.flash > 0 });
+    FxPro.drawStatus(ctx, e, () => FrameSprites.drawFrame(ctx, set, anim, i, e.x, groundY(e.z) - e.y, e.facing, { px: e.size, tint: set === e.def.base ? e.def.tint : null, flash: e.flash > 0 }), e.x, groundY(e.z) - e.y - e.hpx, e.hpx, this.frame);
     ctx.globalAlpha = 1;
     if (e.state === 'guard' && set === e.def.base) { ctx.strokeStyle = 'rgba(127,212,255,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x + e.facing * 0.2 * e.size, groundY(e.z) - 0.55 * e.size, 0.28 * e.size, -1.2, 1.2); ctx.stroke(); }
     if (e.armorN > 0 && this.frame - e.armorF < 12) { ctx.fillStyle = 'rgba(255,155,59,0.25)'; ctx.fillRect(e.x - 0.18 * e.size, groundY(e.z) - e.size, 0.36 * e.size, e.size); }
@@ -890,6 +891,7 @@ class Calle {
     ctx.save(); ctx.translate(this.camX, 0);
     FxPro.superBG(ctx, p.x - this.camX, groundY(p.z) - 80 * p.ls, p.desp ? '#ff3030' : p.ch.color, this.frame, Math.min(1, k * 1.5));
     if (k > 0.5) FxPro.aura(ctx, p.x - this.camX, groundY(p.z), p.hpx, p.desp ? '#ff3030' : p.ch.color, this.frame, (k - 0.5) * 2);
+    if (!this.cut) FxPro.giant(ctx, p.ch.id, 110 - this.superFx - 44, p.x - this.camX, groundY(p.z) - 0.6 * p.hpx, p.facing, groundY(CALLE.ZMAX), Math.min(1, this.superFx / 15));
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = Math.min(1, k * 2) * 0.55;
