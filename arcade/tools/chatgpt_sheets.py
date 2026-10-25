@@ -225,12 +225,40 @@ def import_fx(code, src):
         k = 256 / big  # la fila más alta mide 256 px; el resto conserva su proporción
         for (an, n), (s0, e) in zip(it['rows'], runs):
             strip = rgba.crop((0, s0, rgba.width, e))
-            w = strip.width / n
+            # columnas vacías: se toman los n-1 huecos más anchos como cortes (si no hay, reparto uniforme)
+            col = (np.asarray(strip)[..., 3] > 40).sum(0) > 0
+            gaps, x = [], 0
+            while x < len(col):
+                if not col[x]:
+                    g0 = x
+                    while x < len(col) and not col[x]: x += 1
+                    if g0 > 0 and x < len(col): gaps.append((x - g0, (g0 + x) // 2))
+                x += 1
+            cuts = sorted(c for _, c in sorted(gaps, reverse=True)[:n - 1])
+            if len(cuts) != n - 1 or min(b - a for a, b in zip([0] + cuts, cuts + [strip.width])) < strip.width / n * 0.4:
+                cuts = [int(j * strip.width / n) for j in range(1, n)]
+            bounds = list(zip([0] + cuts, cuts + [strip.width]))
+            # cada mancha va al fotograma donde cae su centro (así no se cuelan trozos del vecino)
+            sa = np.asarray(strip).copy()
+            lab, nl = ndimage.label(ndimage.binary_dilation(sa[..., 3] > 20, iterations=2))
+            cx_of = ndimage.center_of_mass(sa[..., 3] > 20, lab, range(1, nl + 1)) if nl else []
+            objs = ndimage.find_objects(lab)
+            def by_centre(x0, x1):
+                keep = [i + 1 for i, c in enumerate(cx_of) if x0 <= c[1] < x1]
+                lo = min([x0] + [objs[k - 1][1].start for k in keep]); hi = max([x1] + [objs[k - 1][1].stop for k in keep])
+                fr = sa.copy(); fr[..., 3] = np.where(np.isin(lab, keep), fr[..., 3], 0)
+                return Image.fromarray(fr, 'RGBA').crop((lo, 0, hi, strip.height)), lo
+            # por centro solo si todos los fotogramas conservan contenido y ninguno se lleva el de sus vecinos
+            cand = [by_centre(x0, x1) for x0, x1 in bounds]
+            areas = [(np.asarray(c)[..., 3] > 20).sum() for c, _ in cand]
+            plain = [(np.asarray(strip.crop((x0, 0, x1, strip.height)))[..., 3] > 20).sum() for x0, x1 in bounds]
+            use_c = all(a >= 0.6 * b and a <= 1.6 * b for a, b in zip(areas, plain))
             out = []
-            for j in range(n):  # efectos: reparto uniforme (los destellos se tocan y no se separan bien por manchas)
-                c = strip.crop((int(j * w), 0, int((j + 1) * w), strip.height))
+            for j, (x0, x1) in enumerate(bounds):
+                if use_c: c, x0 = cand[j]
+                else: c = strip.crop((x0, 0, x1, strip.height))
                 bb = c.getbbox() or (0, 0, 1, 1)
-                cx, cy = c.width / 2 - bb[0], c.height / 2 - bb[1]
+                cx, cy = (bounds[j][0] + bounds[j][1]) / 2 - x0 - bb[0], c.height / 2 - bb[1]
                 c = c.crop(bb); c = c.resize((max(1, round(c.width * k)), max(1, round(c.height * k))), Image.LANCZOS)
                 out.append({'i': len(frames), 'ax': round(cx * k, 1), 'ay': round(cy * k, 1)}); frames.append(c)
             meta[an] = {'frames': out}
