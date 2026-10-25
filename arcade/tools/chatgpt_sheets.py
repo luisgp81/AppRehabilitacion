@@ -1,0 +1,412 @@
+#!/usr/bin/env python3
+"""Hojas de sprites para generar en ChatGPT (o cualquier chat de imágenes): 10 hojas por personaje,
+3 filas por hoja, una animación por fila. Total: 162 fotogramas por personaje.
+
+  python3 chatgpt_sheets.py prompts            → JSON con los prompts (lo usa el Taller de Sprites)
+  python3 chatgpt_sheets.py import LUIS-H03 hoja.png [JC-H01 otra.png ...]
+      → corta cada fila y la deja como tira en assets/raw/<id>/<anim>.png; después: process_frames.py
+      E-MACARRA-A hoja.png → enemigo del modo Calle (assets/raw/e_macarra); F1-P1 panel.png → fondo (assets/stages/f1/p1.webp)
+  python3 chatgpt_sheets.py calle-md   → prompts del modo Calle en markdown
+      LUIS-H01:3 voltea la fila 3 (si ChatGPT la dibujó mirando a la izquierda); varias: LUIS-H01:2,3
+"""
+import json, pathlib, re, sys
+import numpy as np
+from PIL import Image
+from scipy import ndimage
+
+HERE = pathlib.Path(__file__).resolve().parent
+SHEETS_DIR = HERE.parent / 'assets' / 'sheets'
+STAGES_DIR = HERE.parent / 'assets' / 'stages'    # paneles de fondo del modo Calle
+STAGE_JS = HERE.parent / 'js' / 'stage-index.js'  # copia de cada hoja importada (assets/raw no se versiona)
+sys.path.insert(0, str(HERE))
+from gen_sprites import CHARS, SPECIALS, RAW  # noqa: E402
+
+# (animación, fotogramas, qué debe verse)
+SHEETS = [
+    [('idle', 8, 'fighting stance idle, subtle breathing, seamless loop'), ('walk_f', 8, 'walking forward in guard, legs alternating, seamless loop'), ('walk_b', 8, 'walking backward in guard, cautious, seamless loop')],
+    [('crouch', 4, 'going down into a crouch and holding the crouched guard'), ('jump', 6, 'vertical jump: takeoff, rising tucked, apex tucked ball, falling, landing'), ('dash', 4, 'fast forward dash, low lunge')],
+    [('lp', 5, 'standing jab punch: wind-up, arm fully extended at head height, recovery'), ('sk', 6, 'standing roundhouse kick: knee up, leg fully extended at chest height, recovery'), ('cp', 5, 'crouching punch: crouched wind-up, arm fully extended low, recovery')],
+    [('ck', 6, 'crouching sweep kick: leg fully extended at floor level, follow-through, recovery'), ('jp', 4, 'mid-air diagonal downward punch'), ('jk', 4, 'mid-air flying kick, leg extended diagonally down-forward')],
+    [('proj', 6, 'projectile special move: hands back at hip, charge, both hands thrust forward fully extended, recovery'), ('dp', 6, 'rising uppercut special move: crouch, jump up with fist raised, peak with arm straight up, falling'), ('rush', 6, 'charging rush special move: lean, lunge, attack extended, recovery')],
+    [('super', 8, 'SUPER move: power-up, dramatic wind-up, massive two-handed forward strike, hold, recovery'), ('super2', 8, 'second SUPER, multi-hit rush: explosive start, flurry of strikes, final pose'), ('combo', 5, 'combo finisher: twisting wind-up, devastating launching blow upward-forward, follow-through')],
+    [('ultra', 8, 'ULTIMATE FINISHING MOVE, the most spectacular sequence: dramatic charge, leap in, barrage, spinning strike, massive final blow, victorious end pose'), ('hit', 4, 'getting hit while standing: head snapped back, recoil'), ('hit_crouch', 3, 'getting hit while crouching: flinch, recoil')],
+    [('block', 3, 'standing block with arms crossed in front of the face'), ('block_crouch', 3, 'crouching block with arms crossed low'), ('launched', 4, 'knocked into the air: arched back, spinning helplessly')],
+    [('down', 4, 'knocked down: falling and lying on the back on the floor'), ('getup', 5, 'getting up from the floor: sitting up, kneeling, standing'), ('ko', 5, 'knocked out: collapsing and lying defeated')],
+    [('win', 8, 'victory celebration loop, fist raised, big smile'), ('intro', 8, 'pre-fight intro taunt with signature attitude, loop')],
+    # modo Calle (beat 'em up): agarres. El enemigo NO se dibuja: el personaje agarra a un rival invisible
+    [('grab', 3, 'grabbing an INVISIBLE opponent by the collar with both hands at chest height, holding him in place (do not draw the opponent)'),
+     ('knee', 4, 'while holding the invisible opponent by the collar, delivering a strong knee strike upward at belly height'),
+     ('throw', 6, 'throwing the invisible opponent over his shoulder backwards: lift, turn, hurl, follow-through, recover')],
+]
+EXTRA = {an: txt for cid in SPECIALS for an, txt in SPECIALS[cid].items()}
+
+# ── Modo Calle: enemigos originales (arquetipos de los 80 y 90, sin parecido con personajes con derechos) ──
+# id → (descripción para el prompt, qué hace su habilidad 'skill', y 'skill2' si es jefe)
+ENEMIES = {
+    'macarra': ("a skinny 1980s punk thug in his 20s: tall green mohawk, pale face, safety-pin earrings, black leather jacket covered in metal badges and studs, "
+                "ripped red tartan trousers, white T-shirt, black boots with chains", "a fast flurry of three punches"),
+    'patinadora': ("a 1980s roller-skater girl in her 20s: big curly hair with a pink headband, walkman on the belt and orange foam headphones, neon pink leotard over "
+                   "a cropped jacket, purple leg warmers, white quad roller skates", "crouching low and charging forward on her roller skates with an extended kick"),
+    'socorrista': ("a huge tanned 1980s beach lifeguard in his 30s: bleached blond mullet, thick moustache, mirrored aviator sunglasses, red lifeguard swim shorts, "
+                   "whistle on a cord, orange rescue float slung on his back, enormous muscles", "lunging forward and grabbing an invisible opponent by the neck with both hands (do not draw the opponent)"),
+    'rey': ("BOSS: a big-bellied beach-bar owner in his 50s, the king of the beach bar: white chef hat, open Hawaiian shirt with palm-tree print, gold chain, "
+            "white shorts, flip-flops, carrying a big folded striped beach umbrella as a weapon", "throwing grilled sardine skewers forward like darts",
+            "running forward and slamming with his huge belly"),
+    'breaker': ("a 1980s breakdancer in his teens: backwards red cap, shiny blue tracksuit with white stripes, white sneakers with fat laces, fingerless gloves, "
+                "a chunky boombox at his feet only in the idle row", "spinning on the floor in a breakdance windmill, legs sweeping around"),
+    'bmx': ("a cheeky 1990s BMX kid of about 14: baseball cap with propeller, oversized neon T-shirt, cargo shorts, knee pads, braces on his teeth, "
+            "holding a wooden slingshot, a small BMX bike parked behind him only in the idle row", "shooting a marble forward with his slingshot (do not draw the marble)"),
+    'enmascarado': ("a big fake luchador wrestler in his 30s: an ORIGINAL invented mask (orange with a black lightning pattern, not any real wrestler), "
+                    "bare muscular chest, purple wrestling tights, black boots, a cheap golden belt", "jumping high in the air and diving down chest-first (flying body press)"),
+    'campeona': ("BOSS: the arcade champion, a 1990s gamer woman in her 20s: asymmetric neon-blue hair, oversized holographic bomber jacket, fingerless gloves, "
+                 "a chunky ORIGINAL robotic glove with blinking lights on her right hand, ripped jeans, platform sneakers", "shooting square neon pixel bolts from her robotic glove",
+                 "vanishing in a flicker of pixels and reappearing with a spinning kick"),
+    'yuppie': ("a 1980s yuppie executive in his 30s: slicked-back hair, huge shoulder-pad suit in beige, pastel pink tie, red braces, Rolex-style watch, "
+               "holding a brick-sized mobile phone in one hand and a leather briefcase in the other", "holding the briefcase up in front of his face as a shield (guard)"),
+    'heavy': ("a 1980s heavy-metal biker in his 40s: very long black hair, bushy beard, sleeveless denim vest covered in ORIGINAL invented band patches, "
+              "black T-shirt, leather trousers, cowboy boots, studded wristbands", "charging forward with a headbutt, head down, hair flying"),
+    'gotica': ("a 1990s goth girl who works at a video rental store: pale make-up, black lipstick, black lace dress with fishnet sleeves, purple streaks in her black hair, "
+               "big platform boots, a stack of VHS tapes under her arm", "throwing a VHS tape forward in a high arc (do not draw the tape after it leaves her hand)"),
+    'vigilante': ("a towering nightclub bouncer in his 40s: shaved head, dark sunglasses at night, black bomber jacket with SECURITY-style shoulder patch without letters, "
+                  "black trousers, earpiece, holding a black electric baton", "thrusting the electric baton forward with blue sparks around the tip"),
+    'director': ("FINAL BOSS: the regional director, a sharp-dressed bank executive in his 50s: silver slicked hair, thin moustache, white three-piece suit, "
+                 "black shirt, red tie, gold cufflinks, a tablet in his hand", "lunging forward with a slicing karate chop",
+                 "raising the tablet with both hands and firing a huge horizontal beam of light (draw only a glow on the tablet)"),
+}
+# hojas por enemigo: A y B para todos; C solo para los jefes
+ENEMY_SHEETS = {
+    'A': [('idle', 6, 'fighting stance idle, subtle breathing, seamless loop'), ('walk', 8, 'walking forward ready to fight, seamless loop'),
+          ('atk', 6, 'basic attack: wind-up, strike fully extended, recovery')],
+    'B': [('skill', 8, None), ('hit', 3, 'getting hit: flinch, head snapped back, recoil'),
+          ('down', 6, 'knocked down: frames 1-3 falling backwards through the air, frames 4-6 lying flat on the back on the floor')],
+    'C': [('skill2', 8, None), ('taunt', 6, 'boss taunt standing in place, arrogant attitude, seamless loop')],
+}
+ENEMY_STYLE = ("Late-90s arcade beat 'em up sprite sheet (Neo Geo / CPS-2 quality pixel art) in exactly the same art style, outline weight and shading "
+               "as the attached reference sprite sheet. Every frame: full body, side view, facing RIGHT, same scale. Plain flat pure green #00FF00 background "
+               "everywhere. Clear empty green space between frames and between rows. No text, no labels, no numbers, no logos, no grid lines, no shadows, "
+               "no ground, no effects or projectiles.")
+
+# Fondos: 5 paneles por fase, se colocan uno detrás de otro (el último es la zona del jefe)
+STAGE_PANELS = {
+    'f1': ("a sunny-sunset seaside promenade in Málaga (Spain) in the late 1980s: Mediterranean sea and beach behind a white railing, palm trees, "
+           "street lamps, beach bars, the walkable floor is a wide promenade of terracotta and cream tiles",
+           ["the start: sea and a lighthouse in the distance, palm trees, benches",
+            "a row of beach bars with striped awnings, sardine skewers grilling over a boat full of sand",
+            "an ice-cream kiosk, parked mopeds, neon signs starting to light up",
+            "a small fishermen's area with boats pulled up on the sand behind the railing, nets, crates",
+            "BOSS AREA: the biggest beach bar of the promenade, wooden terrace, tiki torches, a big unlit sign without letters"]),
+    'f2': ("the inside of a huge late-1980s amusement arcade at night: rows of glowing arcade cabinets with ORIGINAL invented screens (no real games), "
+           "neon tubes on the ceiling, carpet with colourful patterns, the walkable floor is that patterned carpet",
+           ["the entrance with a prize counter and change machines",
+            "long rows of arcade cabinets with glowing screens",
+            "a pinball area and air-hockey tables",
+            "a dance-machine stage and a wall of plush-toy crane machines",
+            "BOSS AREA: a raised tournament stage with a giant screen showing an ORIGINAL abstract neon pattern"]),
+    'f3': ("an industrial estate on the outskirts of Málaga at night in the early 1990s leading to a nightclub: warehouses with roller doors, "
+           "graffiti without readable words, puddles reflecting neon, the walkable floor is wet asphalt",
+           ["a closed petrol station and warehouses with roller doors",
+            "a car-parts warehouse, stacked tyres, a broken street light",
+            "a video rental shop with neon and posters without readable text, a parked van",
+            "a queue barrier and bouncer area in front of a nightclub facade",
+            "BOSS AREA: inside the nightclub, an empty dance floor with lights, a mirror ball and a DJ booth"]),
+}
+PANEL_STYLE = ("Side-scrolling beat 'em up background, late-90s arcade quality pixel art (like the best Neo Geo / CPS-2 brawlers), richly detailed, "
+               "landscape 3:2 image. Side view with a slight top-down angle. The walkable floor must occupy exactly the bottom 30% of the image "
+               "(the floor starts at 70% of the image height) and be clear of objects. NO characters, NO people, NO text, NO letters, NO logos. "
+               "The left and right edges must be able to continue into the previous and next panel of the same street (same horizon line, same floor, same lighting).")
+
+STYLE = ("Late-90s arcade fighting game sprite sheet (Neo Geo / CPS-2 quality pixel art), exactly the same character, outfit, face, "
+         "colours, outline weight and shading as the attached character sprite. Every frame: full body, side view, facing RIGHT, same scale. "
+         "Plain flat pure green #00FF00 background everywhere. Clear empty green space between frames and between rows. "
+         "No text, no labels, no numbers, no grid lines, no shadows, no ground, no effects or projectiles.")
+
+
+def prompts():
+    out = {}
+    for cid, c in CHARS.items():
+        items = []
+        for i, rows in enumerate(SHEETS, 1):
+            spec = ' '.join(f"Row {r + 1}: {n} frames, left to right, {what}{('; ' + SPECIALS[cid][an]) if an in SPECIALS[cid] else ''}."
+                            for r, (an, n, what) in enumerate(rows))
+            prompt = (f"Create ONE sprite sheet image of {c['desc']} The sheet has exactly {len(rows)} horizontal rows; each row is one animation "
+                      f"with its frames evenly spaced and the feet of all frames of a row on the same baseline. {spec} {STYLE}")
+            items.append({'code': f"{cid.upper()}-H{i:02d}", 'rows': [[an, n] for an, n, _ in rows], 'frames': sum(n for _, n, _ in rows), 'prompt': prompt})
+        out[cid] = items
+    return out
+
+
+# ── Efectos especiales (fondo NEGRO: se dibujan en modo aditivo, el negro desaparece) ──
+FX_SHEETS = {
+    'IMPACTO': [('hit_s', 6, 'small hit spark: a sharp white-yellow star burst that pops and fades, with tiny flying sparks'),
+                ('hit_l', 6, 'big heavy hit impact: a huge explosive white-orange star burst with shock rings and flying sparks, then fading'),
+                ('guard', 5, 'blocked hit: a round blue-white energy shield flash with a ring expanding and fading')],
+    'ENERGIA': [('aura', 8, 'looping power-up aura: tall flickering energy flames rising around an EMPTY space the size of a person (do not draw a person), white core, loop'),
+                ('burst', 8, 'huge explosion: blinding white flash growing into a big fiery orange-yellow explosion with smoke rings, then fading'),
+                ('dust', 6, 'ground shockwave: a wide flat ring of dust and light expanding along the ground and fading')],
+    'LUIS': [('proj', 6, 'projectile loop: a spinning golden energy orb with a glowing euro symbol inside and green banknotes swirling around it, motion trail to the left'),
+             ('burst', 6, 'impact explosion of golden coins, euro symbols and banknotes bursting outward and fading'),
+             ('super', 8, 'super move energy flare: a massive cyan-white digital energy blast with binary-code particles and circuit lines, growing and pulsing')],
+    'JC': [('proj', 6, 'projectile loop: a comic-book style shockwave: yellow and red jagged explosion bubble with halftone dots and speed lines, moving right'),
+           ('burst', 6, 'comic-book impact explosion: big jagged yellow-red burst with halftone dots and action lines, then fading (NO letters)'),
+           ('super', 8, 'super move: a giant crashing ocean wave in yellow and blue stripes with white foam, rising and crashing, loop')],
+    'SEBAS': [('proj', 6, 'projectile loop: a spinning black VHS cassette tape wrapped in crackling purple and white electricity, motion trail to the left'),
+              ('burst', 6, 'electric impact: a purple and white lightning explosion with forked bolts, then fading'),
+              ('super', 8, 'super move: a tall vertical pillar of purple and white lightning bolts striking down, crackling, loop')],
+}
+FX_STYLE = ("Late-90s arcade fighting game special effects sprite sheet (Neo Geo / CPS-2 quality pixel art, like the flashiest King of Fighters / Fatal Fury effects), "
+            "vivid glowing colours. Plain flat pure BLACK #000000 background everywhere (it will be used with additive blending). "
+            "Clear empty black space between frames and between rows. Effects only: NO characters, NO people, NO text, NO letters, NO numbers, NO grid lines.")
+PORTRAIT_STYLE = ("Dramatic super-move cut-in portrait for a late-90s arcade fighting game (King of Fighters / Fatal Fury style), pixel art, "
+                  "bust from the chest up, three-quarter view facing RIGHT, intense determined expression, strong rim lighting, speed lines NOT included. "
+                  "Exactly the same character, face, hair and outfit as the attached sprite sheet. Plain flat pure green #00FF00 background everywhere. "
+                  "No text, no letters, no frame, no border.")
+
+
+def fx_prompts():
+    out = []
+    for name, rows in FX_SHEETS.items():
+        spec = ' '.join(f"Row {r + 1}: {n} frames, left to right, {what}." for r, (an, n, what) in enumerate(rows))
+        prompt = (f"Create ONE sprite sheet image of special effects. The sheet has exactly {len(rows)} horizontal rows; each row is one animation "
+                  f"with its frames evenly spaced and centred on the same horizontal line. {spec} {FX_STYLE}")
+        out.append({'code': f'FX-{name}', 'id': name.lower(), 'rows': [[an, n] for an, n, _ in rows], 'prompt': prompt})
+    for cid, c in CHARS.items():
+        out.append({'code': f'RETRATO-{cid.upper()}', 'id': cid, 'portrait': True,
+                    'prompt': f"Create ONE image: {PORTRAIT_STYLE} The character is {c['desc']}"})
+    return out
+
+
+def fx_md():
+    L = ["# Efectos especiales y retratos para ChatGPT", "",
+         "Efectos: una conversación nueva, sin adjuntar nada. Retratos: en la conversación de cada personaje, adjuntando una de sus hojas.",
+         "Sube cada imagen con su código.", ""]
+    for it in fx_prompts():
+        L += [f"## {it['code']}", "", "```", it['prompt'], "```", ""]
+    return "\n".join(L)
+
+
+FX_DIR = HERE.parent / 'assets' / 'fx'
+FX_JS = HERE.parent / 'js' / 'fx-index.js'
+
+
+def import_fx(code, src):
+    """FX-xxx: corta filas y fotogramas sobre fondo negro (alfa = brillo) → assets/fx/<id>/atlas-0.webp + índice.
+    RETRATO-xxx: quita el verde → assets/fx/retratos/<id>.webp"""
+    from process_frames import split, pack, remove_bg
+    img = Image.open(src).convert('RGB')
+    if code.startswith('RETRATO-'):
+        cid = code.split('-', 1)[1].lower()
+        im = remove_bg(img); im = im.crop(im.getbbox())
+        im = im.resize((round(im.width * 512 / im.height), 512), Image.LANCZOS)
+        d = FX_DIR / 'retratos'; d.mkdir(parents=True, exist_ok=True)
+        im.save(d / f'{cid}.webp', quality=90, alpha_quality=100, method=6)
+        print(f'{code} → {d / (cid + ".webp")}')
+    else:
+        it = next(i for i in fx_prompts() if i['code'] == code)
+        a = np.asarray(img).astype(np.float32)
+        lum = a.max(2)
+        alpha = np.clip((lum - 18) * 255 / 120, 0, 255)  # negro → transparente; brillo → opaco
+        rgba = Image.fromarray(np.dstack([a, alpha]).astype(np.uint8), 'RGBA')
+        H = rgba.height; rows = []
+        nr = len(it['rows'])
+        # filas: por franjas vacías (alfa) o reparto uniforme
+        filled = (np.asarray(rgba)[..., 3] > 30).sum(1) > rgba.width * 0.003
+        runs, y = [], 0
+        while y < len(filled):
+            if filled[y]:
+                s0 = y
+                while y < len(filled) and filled[y]: y += 1
+                runs.append([s0, y])
+            y += 1
+        while len(runs) > nr:
+            i = min(range(len(runs) - 1), key=lambda k: runs[k + 1][0] - runs[k][1]); runs[i:i + 2] = [[runs[i][0], runs[i + 1][1]]]
+        if len(runs) != nr: runs = [[int(r * H / nr), int((r + 1) * H / nr)] for r in range(nr)]
+        frames, meta = [], {}
+        big = max(e - s0 for s0, e in runs)
+        k = 256 / big  # la fila más alta mide 256 px; el resto conserva su proporción
+        for (an, n), (s0, e) in zip(it['rows'], runs):
+            strip = rgba.crop((0, s0, rgba.width, e))
+            # columnas vacías: se toman los n-1 huecos más anchos como cortes (si no hay, reparto uniforme)
+            col = (np.asarray(strip)[..., 3] > 40).sum(0) > 0
+            gaps, x = [], 0
+            while x < len(col):
+                if not col[x]:
+                    g0 = x
+                    while x < len(col) and not col[x]: x += 1
+                    if g0 > 0 and x < len(col): gaps.append((x - g0, (g0 + x) // 2))
+                x += 1
+            cuts = sorted(c for _, c in sorted(gaps, reverse=True)[:n - 1])
+            if len(cuts) != n - 1 or min(b - a for a, b in zip([0] + cuts, cuts + [strip.width])) < strip.width / n * 0.4:
+                cuts = [int(j * strip.width / n) for j in range(1, n)]
+            bounds = list(zip([0] + cuts, cuts + [strip.width]))
+            # cada mancha va al fotograma donde cae su centro (así no se cuelan trozos del vecino)
+            sa = np.asarray(strip).copy()
+            lab, nl = ndimage.label(ndimage.binary_dilation(sa[..., 3] > 20, iterations=2))
+            cx_of = ndimage.center_of_mass(sa[..., 3] > 20, lab, range(1, nl + 1)) if nl else []
+            objs = ndimage.find_objects(lab)
+            def by_centre(x0, x1):
+                keep = [i + 1 for i, c in enumerate(cx_of) if x0 <= c[1] < x1]
+                lo = min([x0] + [objs[k - 1][1].start for k in keep]); hi = max([x1] + [objs[k - 1][1].stop for k in keep])
+                fr = sa.copy(); fr[..., 3] = np.where(np.isin(lab, keep), fr[..., 3], 0)
+                return Image.fromarray(fr, 'RGBA').crop((lo, 0, hi, strip.height)), lo
+            # por centro solo si todos los fotogramas conservan contenido y ninguno se lleva el de sus vecinos
+            cand = [by_centre(x0, x1) for x0, x1 in bounds]
+            areas = [(np.asarray(c)[..., 3] > 20).sum() for c, _ in cand]
+            plain = [(np.asarray(strip.crop((x0, 0, x1, strip.height)))[..., 3] > 20).sum() for x0, x1 in bounds]
+            use_c = all(a >= 0.6 * b and a <= 1.6 * b for a, b in zip(areas, plain))
+            out = []
+            for j, (x0, x1) in enumerate(bounds):
+                if use_c: c, x0 = cand[j]
+                else: c = strip.crop((x0, 0, x1, strip.height))
+                bb = c.getbbox() or (0, 0, 1, 1)
+                cx, cy = (bounds[j][0] + bounds[j][1]) / 2 - x0 - bb[0], c.height / 2 - bb[1]
+                c = c.crop(bb); c = c.resize((max(1, round(c.width * k)), max(1, round(c.height * k))), Image.LANCZOS)
+                out.append({'i': len(frames), 'ax': round(cx * k, 1), 'ay': round(cy * k, 1)}); frames.append(c)
+            meta[an] = {'frames': out}
+        pages, rects = pack(frames)
+        d = FX_DIR / it['id']; d.mkdir(parents=True, exist_ok=True)
+        for old in d.glob('atlas-*.webp'): old.unlink()
+        for i, pg in enumerate(pages): pg.save(d / f'atlas-{i}.webp', quality=90, alpha_quality=100, method=6)
+        for an in meta:
+            for fr in meta[an]['frames']: fr['r'] = list(rects[fr.pop('i')])
+        (d / 'atlas.json').write_text(json.dumps({'pages': len(pages), 'anims': meta}, separators=(',', ':')))
+        print(f'{code} → {d} ({len(frames)} fotogramas, {len(pages)} páginas)')
+    idx = {}
+    for d in sorted(FX_DIR.glob('*')):
+        if d.name == 'retratos': idx['retratos'] = sorted(p.stem for p in d.glob('*.webp'))
+        elif (d / 'atlas.json').exists(): idx[d.name] = json.loads((d / 'atlas.json').read_text())
+    FX_JS.write_text('// Generado por tools/chatgpt_sheets.py — no editar\nwindow.FX_INDEX = ' + json.dumps(idx, separators=(',', ':')) + ';\n')
+
+
+def calle_prompts():
+    out = {'enemies': [], 'stages': [], 'grabs': []}
+    for eid, spec in ENEMIES.items():
+        desc, skill = spec[0], spec[1]
+        boss = desc.startswith(('BOSS', 'FINAL BOSS'))
+        for sh in ['A', 'B'] + (['C'] if boss else []):
+            rows = ENEMY_SHEETS[sh]
+            parts = []
+            for r, (an, n, what) in enumerate(rows):
+                what = what or (skill if an == 'skill' else spec[2])
+                parts.append(f"Row {r + 1}: {n} frames, left to right, {what}.")
+            ref = ("Attach one of the protagonists' finished sprite sheets as the STYLE reference (this is a new character, copy only the art style)."
+                   if sh == 'A' else f"Attach the finished sheet E-{eid.upper()}-A as the character reference: exactly the same character, outfit, face and colours.")
+            prompt = (f"Create ONE sprite sheet image of {desc}. The sheet has exactly {len(rows)} horizontal rows; each row is one animation with its frames "
+                      f"evenly spaced and the feet of all frames of a row on the same baseline. {' '.join(parts)} {ENEMY_STYLE}")
+            out['enemies'].append({'code': f"E-{eid.upper()}-{sh}", 'id': eid, 'rows': [[an, n] for an, n, _ in rows], 'ref': ref, 'prompt': prompt})
+    for sid, (desc, panels) in STAGE_PANELS.items():
+        for i, what in enumerate(panels, 1):
+            prompt = (f"Panel {i} of 5 of {desc}. This panel shows {what}. {PANEL_STYLE}")
+            ref = 'Panel 1: no reference needed.' if i == 1 else f'Attach panel {sid.upper()}-P{i - 1} so the style, horizon line and floor continue.'
+            out['stages'].append({'code': f"{sid.upper()}-P{i}", 'id': sid, 'panel': i, 'ref': ref, 'prompt': prompt})
+    for cid, items in prompts().items():
+        out['grabs'].append(items[10])
+    return out
+
+
+def calle_md():
+    d = calle_prompts()
+    L = ["# Modo Calle · hojas y fondos para ChatGPT", "",
+         "Una conversación por enemigo. Pega el prompt y adjunta la referencia que se indica. Sube a Claude cada imagen con su código.", ""]
+    L += ["## Enemigos", ""]
+    for it in d['enemies']:
+        L += [f"### {it['code']}", "", f"*Referencia:* {it['ref']}", "", "```", it['prompt'], "```", ""]
+    L += ["## Fondos (5 paneles por fase)", ""]
+    for it in d['stages']:
+        L += [f"### {it['code']}", "", f"*Referencia:* {it['ref']}", "", "```", it['prompt'], "```", ""]
+    L += ["## Agarres de los protagonistas", "", "En la conversación de cada protagonista, adjuntando una de sus hojas ya hechas.", ""]
+    for it in d['grabs']:
+        L += [f"### {it['code']}", "", "```", it['prompt'], "```", ""]
+    return "\n".join(L)
+
+
+def import_panel(code, src):
+    """F1-P3 hoja.png → assets/stages/f1/p3.webp (720 px de alto) y regenera js/stage-index.js"""
+    sid, pn = code.lower().split('-p')
+    d = STAGES_DIR / sid; d.mkdir(parents=True, exist_ok=True)
+    img = Image.open(src).convert('RGB')
+    img = img.resize((round(img.width * 720 / img.height), 720), Image.LANCZOS)
+    img.save(d / f'p{int(pn)}.webp', quality=88, method=6)
+    idx = {}
+    for sd in sorted(STAGES_DIR.glob('f*')):
+        n = 0
+        while (sd / f'p{n + 1}.webp').exists(): n += 1
+        if n: idx[sd.name] = n
+    STAGE_JS.write_text('// Generado por tools/chatgpt_sheets.py — no editar\nwindow.STAGE_INDEX = ' + json.dumps(idx) + ';\n')
+    print(f'{code} → {d / f"p{int(pn)}.webp"} ({img.width}x{img.height})')
+
+
+def split_rows(img, nrows):
+    """Corta la hoja en filas por las franjas horizontales vacías (o en partes iguales si no se distinguen)."""
+    a = np.asarray(img.convert('RGB')).astype(np.int16)
+    green = (a[..., 1] - np.maximum(a[..., 0], a[..., 2])) > 80
+    filled = ndimage.binary_opening(~green, iterations=2).sum(1) > img.width * 0.004
+    runs, y = [], 0
+    while y < len(filled):
+        if filled[y]:
+            s = y
+            while y < len(filled) and filled[y]: y += 1
+            runs.append([s, y])
+        y += 1
+    while len(runs) > nrows:  # unir huecos pequeños (cintas, pelo) hasta tener las filas esperadas
+        i = min(range(len(runs) - 1), key=lambda k: runs[k + 1][0] - runs[k][1])
+        runs[i:i + 2] = [[runs[i][0], runs[i + 1][1]]]
+    if len(runs) != nrows:
+        h = img.height / nrows
+        runs = [[int(r * h), int((r + 1) * h)] for r in range(nrows)]
+    pad = 6
+    return [img.crop((0, max(0, s - pad), img.width, min(img.height, e + pad))) for s, e in runs]
+
+
+def cadiz_scarf(strip):
+    """ChatGPT pinta la bufanda del Golpe Final de JC en rojo y blanco: la pasa a amarillo y azul (Cádiz).
+    Solo toca la franja alta de los dos últimos fotogramas y respeta la piel y los dientes."""
+    a = np.asarray(strip.convert('RGB')).astype(float)
+    H, W = a.shape[:2]; x0, y1 = int(W * 0.74), int(H * 0.31)
+    reg = a[:y1, x0:]; r, g, b = reg[..., 0], reg[..., 1], reg[..., 2]
+    yy = np.arange(y1)[:, None] * np.ones((1, reg.shape[1]))
+    red = (r > 110) & (g < 95) & (b < 95) & (r - g > 70)
+    white = (r > 165) & (g > 155) & (b > 145) & (np.abs(r - b) < 50) & (yy < H * 0.2)
+    reg[red] = (np.array([250, 200, 25]) * np.clip(r / 230, 0.45, 1.1)[..., None])[red]
+    reg[white] = (np.array([40, 90, 200]) * np.clip((r + g + b) / 660, 0.5, 1.15)[..., None])[white]
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+
+
+FIX = {('jc', 'ultra'): cadiz_scarf}  # retoques automáticos tras cortar una fila
+
+
+def do_import(args):
+    table = {it['code']: (cid, it['rows']) for cid, items in prompts().items() for it in items}
+    table.update({it['code']: ('e_' + it['id'], it['rows']) for it in calle_prompts()['enemies']})
+    if len(args) % 2: sys.exit(__doc__)
+    for code, src in zip(args[::2], args[1::2]):
+        code, _, flip = code.upper().partition(':')
+        flip = {int(r) for r in flip.split(',') if r}
+        if re.fullmatch(r'F\d-P\d', code): import_panel(code, src); continue
+        if code.startswith(('FX-', 'RETRATO-')): import_fx(code, src); continue
+        if code not in table: sys.exit(f'Código desconocido: {code}')
+        cid, rows = table[code]
+        img = Image.open(src)
+        if img.mode in ('RGBA', 'LA', 'P'):  # ChatGPT a veces devuelve fondo transparente: pasa a verde croma
+            rgba = img.convert('RGBA'); bg = Image.new('RGBA', rgba.size, (0, 255, 0, 255)); bg.alpha_composite(rgba); img = bg
+        img = img.convert('RGB')
+        keep = SHEETS_DIR / cid; keep.mkdir(parents=True, exist_ok=True)
+        img.save(keep / f"{code}.webp", quality=92, method=6)  # original, para reimportar
+        d = RAW / cid; d.mkdir(parents=True, exist_ok=True)
+        counts_f = d / 'counts.json'
+        counts = json.loads(counts_f.read_text()) if counts_f.exists() else {}
+        for r, ((an, n), strip) in enumerate(zip(rows, split_rows(img, len(rows))), 1):
+            if r in flip: strip = strip.transpose(Image.FLIP_LEFT_RIGHT)
+            if (cid, an) in FIX: strip = FIX[cid, an](strip)
+            strip.save(d / f'{an}.png'); counts[an] = n
+            counts.setdefault('_sheet', {})[an] = code
+            print(f'{code} fila → {cid}/{an}.png ({n} fotogramas)')
+        counts_f.write_text(json.dumps(counts))
+
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == 'prompts': json.dump(prompts(), sys.stdout, ensure_ascii=False)
+    elif len(sys.argv) > 1 and sys.argv[1] == 'import': do_import(sys.argv[2:])
+    elif len(sys.argv) > 1 and sys.argv[1] == 'calle-md': print(calle_md())
+    elif len(sys.argv) > 1 and sys.argv[1] == 'fx-md': print(fx_md())
+    elif len(sys.argv) > 1 and sys.argv[1] == 'calle': json.dump(calle_prompts(), sys.stdout, ensure_ascii=False)
+    else: sys.exit(__doc__)
