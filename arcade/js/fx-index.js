@@ -1,2 +1,2 @@
 // Generado por tools/chatgpt_sheets.py — no editar
-window.FX_INDEX = {};
+window.FX_INDEX = {"retratos":["jc","luis","sebas"]};
